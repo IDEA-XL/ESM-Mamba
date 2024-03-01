@@ -10,7 +10,7 @@ setting:
     NODE_RANK: 0
   tensorboard:
     log_dir: tmp/
-    name: ESM2_8M
+    name: ESM2_650M
 
 model:
 #    Which model to use
@@ -50,9 +50,9 @@ dataset:
     batch_size: 8
     num_workers: 8
 
-  train_lmdb: /cto_labs/AIDD/DATA/uniref/uniref50/lmdb/train_dedup/data.lmdb
-  valid_lmdb: /cto_labs/AIDD/DATA/uniref/uniref50/lmdb/valid/data.lmdb
-  test_lmdb: /cto_labs/AIDD/DATA/uniref/uniref50/lmdb/valid/data.lmdb
+  train_lmdb: /cto_labs/liuzijing/lmdb/train_dedup/data.lmdb
+  valid_lmdb: /cto_labs/liuzijing/lmdb/valid/data.lmdb
+  test_lmdb: /cto_labs/liuzijing/lmdb/valid/data.lmdb
 #    Arguments to initialize the specific class
   kwargs:
 #    Use ESM2 tokenizer for now
@@ -68,7 +68,7 @@ Trainer:
   min_steps: 1000000
   log_every_n_steps: 100
   accelerator: gpu
-  devices: 1
+  devices: 4
   accumulate_grad_batches: 1
   num_nodes: 1
   strategy:
