@@ -74,3 +74,5 @@ class EsmLMModel(EsmBaseModel):
         self.log_info(log_dict)
         self.reset_metrics("valid")
         self.check_save_condition(log_dict["valid_loss"], mode="min")
+        if self.step % self.save_every_step == 0:
+            self.save_checkpoint_step()

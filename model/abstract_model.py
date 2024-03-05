@@ -14,7 +14,8 @@ class AbstractModel(pl.LightningModule):
                  save_path: str = None,
                  from_checkpoint: str = None,
                  load_prev_scheduler: bool = False,
-                 save_weights_only: bool = True,):
+                 save_weights_only: bool = True,
+                 save_every_step: int = 5000):
         """
 
         Args:
@@ -45,6 +46,7 @@ class AbstractModel(pl.LightningModule):
 
         self.save_path = save_path
         self.save_weights_only = save_weights_only
+        self.save_every_step = save_every_step
         
         self.step = 0
         self.epoch = 0
@@ -280,3 +282,32 @@ class AbstractModel(pl.LightningModule):
                                  "interval": "step",
                                  "frequency": 1}
                 }
+    
+    def save_checkpoint_step(self, save_info: dict = None) -> None:
+        """
+        Save model to save_path
+        Args:
+            save_info: Other info to save
+        """
+        if self.save_path is not None:
+            dir = os.path.dirname(self.save_path)
+            os.makedirs(dir, exist_ok=True)
+
+            save_dir = self.save_path.split("/")[0:-1]
+            filename = self.save_path.split("/")[-1]
+            step_filename = str(self.step) + "_" + filename
+            save_path = os.path.join("/".join(save_dir), step_filename)
+
+            if dist.get_rank() == 0:
+
+                state_dict = {} if save_info is None else save_info
+                state_dict["model"] = self.model.state_dict()
+
+                if not self.save_weights_only:
+                    state_dict["global_step"] = self.step
+                    state_dict["epoch"] = self.epoch
+                    state_dict["best_value"] = getattr(self, f"best_value", None)
+                    state_dict["optimizer"] = self.optimizers().optimizer.state_dict()
+                    state_dict["lr_scheduler"] = self.lr_schedulers().state_dict()
+
+                torch.save(state_dict, save_path)
