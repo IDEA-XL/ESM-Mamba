@@ -10,6 +10,8 @@ from typing import Union
 from transformers import EsmTokenizer, EsmForMaskedLM, EsmConfig
 from transformers import TrainingArguments, Trainer
 
+from transformers import LlamaForCausalLM, LlamaConfig
+
 _10TB = 10995116277760
 
 class SeqInMemoryDataset(torch.utils.data.Dataset):
@@ -32,12 +34,23 @@ class SeqInMemoryDataset(torch.utils.data.Dataset):
     def __getitem__(self, index:int):
         entry = self.data_list[index]
         seq = entry['seq'][:self.max_length]
-        # mask sequence for training
+        masked_seq = " ".join(seq)
+        
         ids = self.tokenizer.encode(seq, add_special_tokens=False)
         tokens = self.tokenizer.convert_ids_to_tokens(ids)
-        masked_tokens, labels = self._apply_bert_mask(tokens)
-        masked_seq = " ".join(masked_tokens)
+        labels = torch.full((len(tokens)+2,), -100, dtype=torch.long)
+        for i in range(len(tokens)):
+            token = tokens[i]
+            labels[i+1] = self.tokenizer.convert_tokens_to_ids(token)
+        
         return masked_seq, labels
+        
+        # # mask sequence for training
+        # ids = self.tokenizer.encode(seq, add_special_tokens=False)
+        # tokens = self.tokenizer.convert_ids_to_tokens(ids)
+        # masked_tokens, labels = self._apply_bert_mask(tokens)
+        # masked_seq = " ".join(masked_tokens)
+        # return masked_seq, labels
     
     def _apply_bert_mask(self, tokens):
         masked_tokens = copy.copy(tokens)
@@ -121,9 +134,18 @@ class SeqLMDBDataset(torch.utils.data.Dataset):
         # mask sequence for training
         ids = self.tokenizer.encode(seq, add_special_tokens=False)
         tokens = self.tokenizer.convert_ids_to_tokens(ids)
-        masked_tokens, labels = self._apply_bert_mask(tokens)
-        masked_seq = " ".join(masked_tokens)
+        
+        masked_seq = " ".join(seq)
+        labels = torch.full((len(tokens)+2,), -100, dtype=torch.long)
+        for i in range(len(tokens)):
+            token = tokens[i]
+            labels[i+1] = self.tokenizer.convert_tokens_to_ids(token)
+        
         return masked_seq, labels
+        
+        # masked_tokens, labels = self._apply_bert_mask(tokens)
+        # masked_seq = " ".join(masked_tokens)
+        # return masked_seq, labels
     
     def _apply_bert_mask(self, tokens):
         masked_tokens = copy.copy(tokens)
@@ -184,14 +206,31 @@ def train():
                 data_list.append(tmp)
     
     model_checkpoint = "/cto_labs/AIDD/WEIGHTS/Protein/esm2_t6_8M_UR50D"
+    model_checkpoint = "/cto_studio/xtalpi_lab/liuzijing/weights/esm2_t30_150M_UR50D"
 
     config = EsmConfig.from_pretrained(model_checkpoint)
 
     tokenizer = EsmTokenizer.from_pretrained(model_checkpoint)
     # model = EsmForMaskedLM.from_pretrained(model_checkpoint)
-    model = EsmForMaskedLM(config)
+    # model = EsmForMaskedLM(config)
+    
+    
+    configuration = LlamaConfig()
+    ## 150M
+    configuration.hidden_size = 640
+    configuration.intermediate_size = 2560
+    configuration.max_position_embeddings = 1026
+    configuration.num_attention_heads = 20
+    configuration.num_hidden_layers = 30
+    configuration.num_key_value_heads = 20
+    configuration.vocab_size = 33
+    configuration.bos_token_id = 0
+    
+    configuration.use_cache = False
+    
+    model = LlamaForCausalLM(configuration)
 
-    batch_size = 32
+    batch_size = 16
     ddp = True
     gradient_checkpointing = True
     save_steps = 5000
@@ -202,13 +241,13 @@ def train():
 
     args = TrainingArguments(
         per_device_train_batch_size=batch_size,
-        gradient_accumulation_steps=4,
-        warmup_steps=2000,
-        num_train_epochs=1000,
+        gradient_accumulation_steps=1,
+        warmup_steps=3000,
+        num_train_epochs=3,
         # max_steps=500000,
         learning_rate=4e-4,
         fp16=True,
-        logging_steps=100,
+        logging_steps=1000,
         optim="adamw_torch",
         evaluation_strategy="steps",
         save_strategy="steps",
@@ -217,11 +256,11 @@ def train():
         output_dir=output_dir,
         save_total_limit=save_total_limit,
         load_best_model_at_end=True,
-        # ddp_find_unused_parameters=False if gradient_checkpointing else None,
-        report_to=None,
+        # ddp_find_unused_parameters=True,
+        report_to="tensorboard",
         run_name=None,
-        dataloader_num_workers=16,
-        # gradient_checkpointing=gradient_checkpointing
+        dataloader_num_workers=8,
+        gradient_checkpointing=gradient_checkpointing
     )
 
     def collate_fn(batch):
@@ -235,14 +274,30 @@ def train():
         inputs["labels"] = label_ids
         return inputs
     
-    train_dataset = SeqInMemoryDataset(data_list[0:-30], tokenizer=model_checkpoint, max_length=1024)
-    test_dataset = SeqInMemoryDataset(data_list[-30:], tokenizer=model_checkpoint, max_length=1024)
+    def collate_fn_gpt(batch):
+        seqs, label_ids = tuple(zip(*batch))
 
+        label_ids = pad_sequences(label_ids, -100)
+        # labels = {"labels": label_ids}
+        
+        encoder_info = tokenizer.batch_encode_plus(seqs, return_tensors='pt', padding=True)
+        inputs = encoder_info
+        inputs["labels"] = label_ids
+        return inputs
+    
+    # train_dataset = SeqInMemoryDataset(data_list[0:256], tokenizer=model_checkpoint, max_length=1024)
+    # test_dataset = SeqInMemoryDataset(data_list[256:], tokenizer=model_checkpoint, max_length=1024)
+    
+    # breakpoint()
+    
     # train_lmdb_path = "/cto_labs/liuzijing/lmdb/train_dedup/data.lmdb"
     # valid_lmdb_path = "/cto_labs/liuzijing/lmdb/valid/data.lmdb"
+    
+    train_lmdb_path = "/cto_studio/xtalpi_lab/temp/lmdb/train_dedup/data.lmdb"
+    valid_lmdb_path = "/cto_studio/xtalpi_lab/temp/lmdb/valid/data.lmdb"
 
-    # train_dataset = SeqLMDBDataset(train_lmdb_path, tokenizer=model_checkpoint, max_length=1024)
-    # test_dataset = SeqLMDBDataset(valid_lmdb_path, tokenizer=model_checkpoint, max_length=1024)
+    train_dataset = SeqLMDBDataset(train_lmdb_path, tokenizer=model_checkpoint, max_length=1024)
+    test_dataset = SeqLMDBDataset(valid_lmdb_path, tokenizer=model_checkpoint, max_length=1024)
 
     trainer = Trainer(
         model,
@@ -250,7 +305,7 @@ def train():
         train_dataset=train_dataset,
         eval_dataset=test_dataset,
         tokenizer=tokenizer,
-        data_collator=collate_fn
+        data_collator=collate_fn_gpt
     )
 
     trainer.train()

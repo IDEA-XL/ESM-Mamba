@@ -15,7 +15,7 @@ class AbstractModel(pl.LightningModule):
                  from_checkpoint: str = None,
                  load_prev_scheduler: bool = False,
                  save_weights_only: bool = True,
-                 save_every_step: int = 5000):
+                 save_every_valid: int = 10):
         """
 
         Args:
@@ -46,10 +46,11 @@ class AbstractModel(pl.LightningModule):
 
         self.save_path = save_path
         self.save_weights_only = save_weights_only
-        self.save_every_step = save_every_step
+        self.save_every_valid = save_every_valid
         
         self.step = 0
         self.epoch = 0
+        self.have_saved = None
         
         self.load_prev_scheduler = load_prev_scheduler
         if from_checkpoint:
@@ -172,6 +173,7 @@ class AbstractModel(pl.LightningModule):
                 print(f"Previous training epoch: {self.epoch}")
                 print(f"Previous best value: {self.best_value}")
                 print(f"Previous lr_scheduler: {state_dict['lr_scheduler']}")
+                self.have_saved = self.step
             
             except Exception as e:
                 print(e)

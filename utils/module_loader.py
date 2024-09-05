@@ -13,7 +13,9 @@ from pytorch_lightning.strategies import DDPStrategy
 def load_tensorboard(config):
     # initialize tensorboard
     tensorboard_config = config.setting.tensorboard
-    tensorboard_logger = TensorBoardLogger(tensorboard_config.log_dir, name=tensorboard_config.name)
+    tensorboard_logger = TensorBoardLogger(tensorboard_config.log_dir, 
+                                           name=tensorboard_config.name,
+                                           version=tensorboard_config.version if "version" in tensorboard_config else None)
     return tensorboard_logger
 
 

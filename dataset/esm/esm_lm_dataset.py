@@ -52,7 +52,7 @@ class EsmLMDataset(LMDBDataset):
 	
 	def _apply_bert_mask(self, tokens):
 		masked_tokens = copy.copy(tokens)
-		labels = torch.full((len(tokens)+2,), -1, dtype=torch.long)
+		labels = torch.full((len(tokens)+2,), -1, dtype=torch.long) # add labels for cls and eos tokens 
 		for i in range(len(tokens)):
 			token = tokens[i]
 			
