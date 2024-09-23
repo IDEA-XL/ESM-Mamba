@@ -1,8 +1,8 @@
-import esm
+import esm2
 import itertools
 import torch
 
-from esm.model.esm2 import ESM2
+from esm2.model.esm2 import ESM2
 from .constants import foldseek_seq_vocab, foldseek_struc_vocab
 
 
@@ -19,7 +19,7 @@ def load_esm_saprot(path: str):
         token = seq_token + struc_token
         tokens.append(token)
     
-    alphabet = esm.data.Alphabet(standard_toks=tokens,
+    alphabet = esm2.data.Alphabet(standard_toks=tokens,
                                  prepend_toks=[],
                                  append_toks=[],
                                  prepend_bos=True,

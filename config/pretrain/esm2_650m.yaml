@@ -3,7 +3,7 @@ setting:
   os_environ:
     WANDB_API_KEY: ~
     WANDB_RUN_ID: ~
-    CUDA_VISIBLE_DEVICES: 0,1,2,3
+    CUDA_VISIBLE_DEVICES: 0,1,2,3,4,5,6,7
     MASTER_ADDR: 127.0.0.1
     MASTER_PORT: 12315
     WORLD_SIZE: 1
@@ -38,7 +38,7 @@ model:
     betas: [0.9, 0.98]
     weight_decay: 0.01
 
-  save_path: results/esm2_t33_650M_UR50D.pt
+  save_path: results/ESM_650M/esm2_t33_650M_UR50D.pt
   load_prev_scheduler: false
   save_weights_only: false
 
@@ -47,8 +47,8 @@ dataset:
 #    Arguments to initialize the basic class LMDBDataset
   dataset_py_path: esm/esm_lm_dataset
   dataloader_kwargs:
-    batch_size: 8
-    num_workers: 8
+    batch_size: 16
+    num_workers: 16
 
   train_lmdb: /cto_labs/liuzijing/lmdb/train_dedup/data.lmdb
   valid_lmdb: /cto_labs/liuzijing/lmdb/valid/data.lmdb
@@ -64,11 +64,11 @@ dataset:
 #  Arguments to initialize Pytorch Lightning Trainer
 Trainer:
 #  max_epochs: 100
-  max_steps: 1000000
+  max_steps: 5000000
   min_steps: 1000000
   log_every_n_steps: 100
   accelerator: gpu
-  devices: 4
+  devices: 8
   accumulate_grad_batches: 1
   num_nodes: 1
   strategy:

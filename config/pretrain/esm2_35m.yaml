@@ -39,7 +39,8 @@ model:
     weight_decay: 0.01
 
   save_path: results/ESM_35M/esm2_t12_35M_UR50D.pt
-  load_prev_scheduler: false
+  from_checkpoint: /cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/ESM_35M/480000_esm2_t12_35M_UR50D.pt
+  load_prev_scheduler: True
   save_weights_only: false
   save_every_step: 10000
 
@@ -49,7 +50,7 @@ dataset:
   dataset_py_path: esm/esm_lm_dataset
   dataloader_kwargs:
     batch_size: 32
-    num_workers: 16
+    num_workers: 32
 
   train_lmdb: /cto_labs/liuzijing/lmdb/train_dedup/data.lmdb
   valid_lmdb: /cto_labs/liuzijing/lmdb/valid/data.lmdb
@@ -65,7 +66,7 @@ dataset:
 #  Arguments to initialize Pytorch Lightning Trainer
 Trainer:
 #  max_epochs: 100
-  max_steps: 1000000
+  max_steps: 3000000
   min_steps: 1000000
   log_every_n_steps: 100
   accelerator: gpu

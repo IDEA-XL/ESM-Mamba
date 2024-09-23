@@ -208,7 +208,7 @@ def train():
     model_checkpoint = "/cto_labs/AIDD/WEIGHTS/Protein/esm2_t6_8M_UR50D"
     model_checkpoint = "/cto_studio/xtalpi_lab/liuzijing/weights/esm2_t30_150M_UR50D"
 
-    config = EsmConfig.from_pretrained(model_checkpoint)
+    # config = EsmConfig.from_pretrained(model_checkpoint)
 
     tokenizer = EsmTokenizer.from_pretrained(model_checkpoint)
     # model = EsmForMaskedLM.from_pretrained(model_checkpoint)
@@ -230,7 +230,7 @@ def train():
     
     model = LlamaForCausalLM(configuration)
 
-    batch_size = 16
+    batch_size = 32
     ddp = True
     gradient_checkpointing = True
     save_steps = 5000
@@ -259,7 +259,7 @@ def train():
         # ddp_find_unused_parameters=True,
         report_to="tensorboard",
         run_name=None,
-        dataloader_num_workers=8,
+        dataloader_num_workers=0,
         gradient_checkpointing=gradient_checkpointing
     )
 
@@ -281,6 +281,7 @@ def train():
         # labels = {"labels": label_ids}
         
         encoder_info = tokenizer.batch_encode_plus(seqs, return_tensors='pt', padding=True)
+        breakpoint()
         inputs = encoder_info
         inputs["labels"] = label_ids
         return inputs
