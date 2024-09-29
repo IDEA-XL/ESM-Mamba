@@ -53,9 +53,10 @@ if __name__ == '__main__':
 
     swiss_dir = '/cto_studio/xtalpi_lab/Datasets/af_swissprot'
     f_list = glob.glob(swiss_dir + '/AF-*_v4.pdb.gz')
+    out_plddt = {}
     out_str = {}
     fasta_name = "/cto_studio/xtalpi_lab/Datasets/af_swissprot.fasta"
-    out_name = "/cto_studio/xtalpi_lab/Datasets/af_swissprot_vqvae.pkl"
+    plddt_name = "/cto_studio/xtalpi_lab/Datasets/af_swissprot_plddt.pkl"
     f0 = open(fasta_name, 'w')
 
     for f_name in tqdm(f_list):
@@ -77,11 +78,12 @@ if __name__ == '__main__':
         f0.write(protein.sequence + '\n')
 
         out_str[protein.sequence] = structure_tokens.cpu().numpy()
+        out_plddt[protein.sequence] = protein.confidence
 
-    with open(out_name, 'wb') as f:
-        pickle.dump(out_str, f)
+    with open(plddt_name, 'wb') as f:
+        pickle.dump(out_plddt, f)
 
-    f0.close()
+    # f0.close()
 
     # f_name = "/cto_studio/xtalpi_lab/Datasets/af_swissprot/AF-Q5VSL9-F1-model_v4.pdb.gz"
 

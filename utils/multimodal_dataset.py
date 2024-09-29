@@ -16,20 +16,35 @@ _10TB = 10995116277760
 SEQ_OFFSET = 33
 
 class SeqStructDataset(torch.utils.data.Dataset):
+    """
+    Parameters:
+        lmdb_path (`str`):
+            Path to the sequence data.
+
+        struct_path (`str`):
+            Path to the structure token data.
+
+        max_length (`int`)
+
+        struct_only (`bool`):
+            Whether to use the sequence GPT loss.
+    """
     def __init__(self,
                  lmdb_path: str,
 	             struct_path: str,
 	             max_length: int = 512,
-				 **kwargs):
+                 seq_ratio: int = 1,
+				 struct_only: bool = False):
         super().__init__()
 
-        self.seq_ratio = 1
+        self.seq_ratio = seq_ratio
 
         self.lmdb_path = lmdb_path
         self.sequence_tokenizer = EsmSequenceTokenizer()
         self.structure_tokenizer = StructureTokenizer()
-        self.aa = [k for k in self.sequence_tokenizer.get_vocab().keys()]
+        # self.aa = [k for k in self.sequence_tokenizer.get_vocab().keys()]
         self.max_length = max_length
+        self.struct_only = struct_only
 
         with open(struct_path, 'rb') as f:
             self.struct_data = pickle.load(f)
@@ -79,21 +94,26 @@ class SeqStructDataset(torch.utils.data.Dataset):
             index = index // self.seq_ratio
             seq = self.struct_seq[index]
             struct = self.struct_data[seq] # <S_BOS> SS <S_EOS>
-            # current cut to max len of 512  # SS <S_EOS>
+            # cut to max len of 512  
             start_idx = random.randint(0, max(0, len(seq) - self.max_length//2))
             end_idx = start_idx + min(self.max_length//2, len(seq))
-
-            struct = torch.tensor(np.concatenate((struct[start_idx+1:end_idx+1], struct[-1:])), dtype=torch.int64)
+            # <S_BOS> SS[start:end] <S_EOS>
+            struct = torch.tensor(np.concatenate((struct[0:1], struct[start_idx+1:end_idx+1], struct[-1:])), dtype=torch.int64)
             seq = seq[start_idx:end_idx]
-            sequence_tokens = encoding.tokenize_sequence(seq, self.sequence_tokenizer, add_special_tokens=True)        # <bos> AA <eos>
+            # <bos> AA <eos>
+            sequence_tokens = encoding.tokenize_sequence(seq, self.sequence_tokenizer, add_special_tokens=True)  
             
-            # <bos> AA <eos> SS <S_EOS> 
+            # <bos> AA <eos> <S_BOS> SS <S_EOS> 
             token_ids = torch.cat((sequence_tokens, struct+SEQ_OFFSET))
             labels = torch.full((len(token_ids),), -100, dtype=torch.long)
-            for i in range(len(sequence_tokens)-2):
-                labels[i+1] = token_ids[i+1]
-                labels[i+end_idx-start_idx+2] = token_ids[i+end_idx-start_idx+2]
-            # TODO random cut to max len of 512 
+            if self.struct_only:
+                for i in range(len(sequence_tokens)):
+                    labels[i+end_idx-start_idx+2] = token_ids[i+end_idx-start_idx+2]
+            else:
+                for i in range(len(sequence_tokens)):
+                    labels[i] = token_ids[i]
+                    labels[i+end_idx-start_idx+2] = token_ids[i+end_idx-start_idx+2]
+            # TODO cut to max len of 512 according to plddt 
 
         else:  # sequence
             index = random.randint(0, self.len_seq-1)
@@ -104,8 +124,8 @@ class SeqStructDataset(torch.utils.data.Dataset):
                     seq, self.sequence_tokenizer, add_special_tokens=True
                 )        # <bos> AA <eos>
             labels = torch.full((len(token_ids),), -100, dtype=torch.long)
-            for i in range(len(token_ids)-2):
-                labels[i+1] = token_ids[i+1]
+            for i in range(len(token_ids)):
+                labels[i] = token_ids[i]
         
         return token_ids, labels
         

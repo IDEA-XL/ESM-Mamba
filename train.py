@@ -11,23 +11,42 @@ from utils import multimodal_dataset
 
 _10TB = 10995116277760
 
-def train():
+def train(ckpt):
     train_struct_name = "/cto_studio/xtalpi_lab/Datasets/af_swissprot_vqvae.pkl"
-    train_lmdb_path = "/cto_studio/xtalpi_lab/temp/lmdb/train_dedup/data.lmdb"
-    valid_lmdb_path = "/cto_studio/xtalpi_lab/temp/lmdb/valid/data.lmdb"
+
+    # train_lmdb_path = "/cto_studio/xtalpi_lab/temp/lmdb/train_dedup/data.lmdb"
+    # valid_lmdb_path = "/cto_studio/xtalpi_lab/temp/lmdb/valid/data.lmdb"
+    # output_dir = "./results"
+
+    train_lmdb_path = "/cto_labs/liuzijing/lmdb/train_dedup/data.lmdb"
+    valid_lmdb_path = "/cto_labs/liuzijing/lmdb/valid/data.lmdb"
+    output_dir = "/cto_labs/liuzijing/outputs/vqvae_gpt_ss"
+
+    struct_only = False
+    seq_ratio = 1
+    if struct_only:
+        exp_name = "struct_only"
+    else:
+        exp_name = "seq_struct"
 
     train_dataset = multimodal_dataset.SeqStructDataset(valid_lmdb_path, 
-                                                        train_struct_name, max_length=1024)
+                                                        train_struct_name, 
+                                                        max_length=1024, seq_ratio=seq_ratio, 
+                                                        struct_only=struct_only)
     
     test_dataset = multimodal_dataset.SeqStructDataset(valid_lmdb_path, 
-                                                        train_struct_name, max_length=512)
+                                                        train_struct_name, 
+                                                        max_length=512, struct_only=struct_only)
 
     # config = EsmConfig.from_pretrained(model_checkpoint)
     # model = EsmForMaskedLM.from_pretrained(model_checkpoint)
     # model = EsmForMaskedLM(config)
     
     configuration = LlamaConfig()
-    ## 150M
+    configuration.finetuning_task = exp_name
+    configuration.pad_token_id = train_dataset.sequence_tokenizer.pad_token_id
+    ## 150M 
+    ## progen2 small L=12 Head=16 hidden=1024; gpt2 small L=12 Head=12 hidden=768
     configuration.hidden_size = 640
     configuration.intermediate_size = 2560
     configuration.max_position_embeddings = 1028##
@@ -41,19 +60,18 @@ def train():
 
     model = LlamaForCausalLM(configuration)
 
-    batch_size = 16
+    batch_size = 64
     gradient_checkpointing = True
     save_steps = 5000
     eval_steps = 5000
     save_total_limit=3
-    output_dir = "./results"
 
 
     args = TrainingArguments(
         per_device_train_batch_size=batch_size,
-        gradient_accumulation_steps=4,
-        warmup_steps=3000,
-        num_train_epochs=3,
+        gradient_accumulation_steps=2, # 2 if 4 gpus
+        warmup_steps=5000,
+        num_train_epochs=50,
         # max_steps=500000,
         learning_rate=4e-4,
         fp16=True,
@@ -69,7 +87,7 @@ def train():
         # ddp_find_unused_parameters=True,
         report_to="tensorboard",
         run_name=None,
-        dataloader_num_workers=0,
+        dataloader_num_workers=2,
         gradient_checkpointing=gradient_checkpointing,
         data_seed=54,
         # use_cpu=True
@@ -83,8 +101,15 @@ def train():
         data_collator=multimodal_dataset.collate_fn_gpt
     )
 
-    trainer.train()
+    if ckpt is None:
+        trainer.train()
+    else:
+        trainer.train(resume_from_checkpoint=ckpt)
 
 
 if __name__ == "__main__":
-    train()
+    if len(sys.argv) == 1:
+        ckpt = None
+    elif len(sys.argv) == 2:
+        ckpt = sys.argv[1]
+    train(ckpt)
