@@ -48,6 +48,9 @@ class SeqStructDataset(torch.utils.data.Dataset):
 
         with open(struct_path, 'rb') as f:
             self.struct_data = pickle.load(f)
+        
+        with open("/cto_studio/xtalpi_lab/Datasets/af_swissprot_plddt.pkl", 'rb') as f:
+            self.seq2plddt = pickle.load(f)
 
         self.len_struct = len(self.struct_data)
         self.struct_seq = list(self.struct_data.keys())
@@ -94,9 +97,50 @@ class SeqStructDataset(torch.utils.data.Dataset):
             index = index // self.seq_ratio
             seq = self.struct_seq[index]
             struct = self.struct_data[seq] # <S_BOS> SS <S_EOS>
-            # cut to max len of 512  
-            start_idx = random.randint(0, max(0, len(seq) - self.max_length//2))
-            end_idx = start_idx + min(self.max_length//2, len(seq))
+
+            plddt = self.seq2plddt[seq]
+            idx = np.arange(len(seq))
+            
+            idx = idx[plddt > 70] 
+            if len(idx) < 1:
+                token_ids = encoding.tokenize_sequence(
+                    seq, self.sequence_tokenizer, add_special_tokens=True
+                )        # <bos> AA <eos>
+                labels = torch.full((len(token_ids),), -100, dtype=torch.long)
+                for i in range(len(token_ids)):
+                    labels[i] = token_ids[i]
+                return token_ids, labels
+            else:
+                current_seq = [idx[0]]
+                seqs = []
+                for i in range(1, len(idx)):
+                    if idx[i] == idx[i-1] + 1:
+                        current_seq.append(idx[i])
+                    else:
+                        if len(current_seq) > 15:
+                            seqs.append(current_seq)
+                        current_seq = [idx[i]]
+
+                if len(current_seq) > 15:
+                    seqs.append(current_seq)
+                if len(seqs) < 1:
+                    token_ids = encoding.tokenize_sequence(
+                        seq, self.sequence_tokenizer, add_special_tokens=True
+                    )        # <bos> AA <eos>
+                    labels = torch.full((len(token_ids),), -100, dtype=torch.long)
+                    for i in range(len(token_ids)):
+                        labels[i] = token_ids[i]
+                    return token_ids, labels
+                else:
+                    seq_idx = random.randint(0, len(seqs)-1)
+
+            # cut to max len of 512
+            start_offset = random.randint(0, max(0, len(seqs[seq_idx]) - self.max_length//2))
+            start_idx = seqs[seq_idx][0] + start_offset
+            end_idx = start_idx + min(self.max_length//2, len(seqs[seq_idx]))
+
+            # start_idx = random.randint(0, max(0, len(seq) - self.max_length//2))
+            # end_idx = start_idx + min(self.max_length//2, len(seq))
             # <S_BOS> SS[start:end] <S_EOS>
             struct = torch.tensor(np.concatenate((struct[0:1], struct[start_idx+1:end_idx+1], struct[-1:])), dtype=torch.int64)
             seq = seq[start_idx:end_idx]
@@ -113,6 +157,7 @@ class SeqStructDataset(torch.utils.data.Dataset):
                 for i in range(len(sequence_tokens)):
                     labels[i] = token_ids[i]
                     labels[i+end_idx-start_idx+2] = token_ids[i+end_idx-start_idx+2]
+            return token_ids, labels
             # TODO cut to max len of 512 according to plddt 
 
         else:  # sequence
@@ -126,8 +171,9 @@ class SeqStructDataset(torch.utils.data.Dataset):
             labels = torch.full((len(token_ids),), -100, dtype=torch.long)
             for i in range(len(token_ids)):
                 labels[i] = token_ids[i]
+            return token_ids, labels
         
-        return token_ids, labels
+        
         
 
 def pad_sequences(sequences, constant_value=0, dtype=None, return_mask=False) -> np.ndarray:
