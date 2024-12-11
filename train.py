@@ -23,11 +23,13 @@ def train(ckpt):
     output_dir = "/cto_labs/liuzijing/outputs/gpt2small_ss2"
 
     struct_only = False
-    seq_ratio = 2
+    batch_size = 128
+    gradient_accumulation = 1
+    seq_ratio = 1# struct_data : seq_data = 1: (seq_ratio-1)
     if struct_only:
-        exp_name = "struct_only"
+        exp_name = f"struct_only_b{batch_size}_{seq_ratio}"
     else:
-        exp_name = "seq_struct"
+        exp_name = f"seq_struct_b{batch_size}_ss{seq_ratio}"
 
     train_dataset = multimodal_dataset.SeqStructDataset(train_lmdb_path, 
                                                         train_struct_name, 
@@ -45,8 +47,10 @@ def train(ckpt):
     configuration = LlamaConfig()
     configuration.finetuning_task = exp_name
     configuration.pad_token_id = train_dataset.sequence_tokenizer.pad_token_id
-    ## 150M 
-    ## progen2 small L=12 Head=16 hidden=1024; gpt2 small L=12 Head=12 hidden=768
+    ## num para ~ 12 * Hidden^2 * layer + Vocab_size * hidden 
+    ## progen2 small L=12 Head=16 hidden=1024; gpt2 small L=12 Head=12 hidden=64*Head=768
+    ## gpt2 middle L=16 Head=16 hidden=1024 200m
+    ## gpt2 middle L=20 Head=16 hidden=1024 
     configuration.hidden_size = 768
     configuration.intermediate_size = 768*4
     configuration.max_position_embeddings = 1028##
@@ -60,18 +64,17 @@ def train(ckpt):
 
     model = LlamaForCausalLM(configuration)
 
-    batch_size = 64
     gradient_checkpointing = True
     save_steps = 5000
     eval_steps = 5000
-    save_total_limit=3
+    save_total_limit=5
 
 
     args = TrainingArguments(
         per_device_train_batch_size=batch_size,
-        gradient_accumulation_steps=1, # 2 if 4 gpus
+        gradient_accumulation_steps=gradient_accumulation, # 2 if 4 gpus
         warmup_steps=5000,
-        num_train_epochs=80,
+        num_train_epochs=100,
         # max_steps=500000,
         learning_rate=4e-4,
         fp16=True,
