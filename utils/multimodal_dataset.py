@@ -171,10 +171,77 @@ class SeqStructDataset(torch.utils.data.Dataset):
             labels = torch.full((len(token_ids),), -100, dtype=torch.long)
             for i in range(len(token_ids)):
                 labels[i] = token_ids[i]
-            return token_ids, labels
+            return token_ids, labels   
         
+
+class SeqDataset(torch.utils.data.Dataset):
+    """
+    Parameters:
+        lmdb_path (`str`):
+            Path to the sequence data.
+
+        max_length (`int`)
+    """
+    def __init__(self,
+                 lmdb_path: str,
+	             max_length: int = 512):
+        super().__init__()
+
+        self.lmdb_path = lmdb_path
+        self.sequence_tokenizer = EsmSequenceTokenizer()
+        # self.aa = [k for k in self.sequence_tokenizer.get_vocab().keys()]
+        self.max_length = max_length
+
+        self.env = None
+        self.txn = None
+
+        self._init_lmdb(lmdb_path)
+        self.len_seq = int(self._get("length"))
+
+    def _init_lmdb(self, path):
+        if self.env is not None:
+            self._close_lmdb()
+
+        # open lmdb
+        self.env = lmdb.open(
+            path, subdir=os.path.isdir(path), lock=False, readonly=False,
+            readahead=False, meminit=False, map_size=_10TB, max_readers=1,
+        )
+        self.txn = self.env.begin(write=False, buffers=True)
+    
+    def _close_lmdb(self):
+        if self.env is not None:
+            self.env.close()
+            self.env = None
+            self.txn = None
+
+    def _cursor(self):
+        return self.operator.cursor()
+
+    def _get(self, key: Union[str, int]):
+        value = self.txn.get(str(key).encode())
         
+        if value is not None:
+            value = value.tobytes()
         
+        return value
+
+    def __len__(self):
+        return int(self.seq_ratio * self.len_struct)
+    
+    def __getitem__(self, index:int):
+        index = random.randint(0, self.len_seq-1)
+        index = f"{index:09d}"
+        entry = json.loads(self._get(index))
+        seq = entry['seq'][:self.max_length]
+        token_ids = encoding.tokenize_sequence(
+                seq, self.sequence_tokenizer, add_special_tokens=True
+            ) # <bos> AA <eos>
+        labels = torch.full((len(token_ids),), -100, dtype=torch.long)
+        for i in range(len(token_ids)):
+            labels[i] = token_ids[i]
+        return token_ids, labels
+
 
 def pad_sequences(sequences, constant_value=0, dtype=None, return_mask=False) -> np.ndarray:
     batch_size = len(sequences)
