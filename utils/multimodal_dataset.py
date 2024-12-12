@@ -227,7 +227,7 @@ class SeqDataset(torch.utils.data.Dataset):
         return value
 
     def __len__(self):
-        return int(self.seq_ratio * self.len_struct)
+        return self.len_seq
     
     def __getitem__(self, index:int):
         index = random.randint(0, self.len_seq-1)
