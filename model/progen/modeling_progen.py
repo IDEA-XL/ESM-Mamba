@@ -289,6 +289,7 @@ class ProGenPreTrainedModel(PreTrainedModel):
     """
 
     config_class = ProGenConfig
+    supports_gradient_checkpointing = True
     base_model_prefix = "transformer"
     is_parallelizable = True
 
@@ -310,6 +311,10 @@ class ProGenPreTrainedModel(PreTrainedModel):
         elif isinstance(module, nn.LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
+
+    def _set_gradient_checkpointing(self, module, value=False):
+        if isinstance(module, ProGenModel):
+            module.gradient_checkpointing = value
 
 
 class ProGenModel(ProGenPreTrainedModel):
