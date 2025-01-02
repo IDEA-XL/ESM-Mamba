@@ -102,7 +102,7 @@ TFIDF_VECTOR_SIZE = 58641
 def data_root():
     # Try a few default directories
     for path in [
-        "esm/data",
+        "/cto_studio/xtalpi_lab/liuzijing/weights/esm3-sm-open-v1/data",
         "esm/data",
     ]:
         if (p := Path(path)).exists():

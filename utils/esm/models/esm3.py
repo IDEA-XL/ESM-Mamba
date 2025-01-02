@@ -238,7 +238,7 @@ class ESM3(nn.Module, ESM3InferenceClient):
         model_name: str = ESM3_OPEN_SMALL,
         device: torch.device | None = None,
     ) -> ESM3:
-        from esm2.pretrained import load_local_model
+        from esm.pretrained import load_local_model
 
         if model_name not in [ESM3_OPEN_SMALL]:
             raise ValueError(f"Model name {model_name} is not a valid ESM3 model name.")

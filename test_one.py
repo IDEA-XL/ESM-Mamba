@@ -1,6 +1,13 @@
 import torch
 import numpy as np
 
+from tokenizers import Tokenizer
+
+from model.progen.modeling_progen import ProGenForCausalLM
+from model.progen.configuration_progen import ProGenConfig
+
+from model.modeling_ss import MultiModalityCausalLM, MultiModalityConfig
+
 from transformers import LlamaForCausalLM
 
 import sys
@@ -31,35 +38,51 @@ def ESM3_structure_decoder_v0(device: torch.device | str = "cpu"):
     return model
 
 
-def test_one(input_seq, ckpt_path):
+def test_one(input_seq, ckpt_path, 
+             temperature: float = 1,
+             parallel_size: int = 4):
     my_device = "cuda"
-    sequence_tokenizer = EsmSequenceTokenizer()
+
     structure_tokenizer = StructureTokenizer()
-    token_ids = encoding.tokenize_sequence(input_seq, sequence_tokenizer, add_special_tokens=True)
 
-    model = LlamaForCausalLM.from_pretrained(ckpt_path, device_map=my_device)
-    token_ids = token_ids[None, :].to(my_device) 
+    model = MultiModalityCausalLM.from_pretrained(ckpt_path, device_map=my_device, gradient_checkpointing=False, use_cache = True)
+    model = model.to(torch.float16).cuda().eval()
 
-    # generate_ids = model.generate(token_ids, max_length=1024, do_sample=True, 
-    #                             top_k=0, top_p=0.95, temperature=0.8, num_return_sequences=5)
-    generate_ids = model.generate(token_ids, max_length=1024, num_beams=10,
-                                num_return_sequences=5)
-    # breakpoint()
+    with open("model/progen/tokenizer.json", 'r') as f:
+        progen_tokenizer = Tokenizer.from_str(f.read())
 
-    seq_len = len(input_seq)
-    struct_token_1 = generate_ids[:, seq_len+2:2*seq_len+4] - SEQ_OFFSET
-    struct_token = generate_ids[:, seq_len+3:2*seq_len+3] - SEQ_OFFSET
+    len_seq = len(input_seq)
+
+    seq = "1" + input_seq + "2" + "3"
+
+    input_ids = torch.tensor(progen_tokenizer.encode(seq).ids, dtype=torch.long)
+
+    tokens = torch.zeros((parallel_size, len(input_ids)), dtype=torch.int).cuda()
+
+    for i in range(parallel_size):
+        tokens[i, :] = input_ids
+
+    inputs_embeds = model.language_model.transformer.wte(tokens)
+
+    generated_tokens = torch.zeros((parallel_size, len_seq), dtype=torch.int).cuda()
+
+    for i in range(len_seq):
+        outputs = model.language_model.transformer(inputs_embeds=inputs_embeds, use_cache=True, past_key_values=outputs.past_key_values if i != 0 else None)
+        hidden_states = outputs.last_hidden_state #(B, L, d)
+
+        logits = model.gen_head(hidden_states[:, -1, :]).to(torch.float32) # last logit
+
+        probs = torch.softmax(logits / temperature, dim=-1)
+
+        next_token = torch.multinomial(probs, num_samples=1)
+        generated_tokens[:, i] = next_token.squeeze(dim=-1)
+
+        inputs_embeds = model.prepare_gen_img_embeds(next_token)
+
+    struct_token = generated_tokens
     struct_token = torch.cat((struct_token[:,0:1], struct_token,struct_token[:,-1:]), dim=1)
     struct_token[:,0] = structure_tokenizer.bos_token_id
     struct_token[:,-1] = structure_tokenizer.eos_token_id
-
-    assert torch.all(torch.isclose(struct_token[:,0], struct_token_1[:,0]))
-    # assert torch.all(torch.isclose(struct_token[:,-1], struct_token_1[:,-1]))
-    if not torch.all(torch.isclose(struct_token[:,-1], struct_token_1[:,-1])):
-        print("eos not correctly predicted, cut with seq length")
-    if (struct_token < 0).sum() > 0:
-        print("negative strucutre token exists, replace with pad token")
-        struct_token[struct_token<0] = structure_tokenizer.pad_token_id
 
     for i in range(struct_token.shape[0]):
         coordinates, plddt, ptm = decoding.decode_structure(
@@ -78,6 +101,6 @@ def test_one(input_seq, ckpt_path):
 if __name__ == "__main__":
     ckpt = sys.argv[1]
 
-    test_input = "EESEILKKREKYNAAPSTLSEEVFSKVSNTMKSPYNSVGTVFIKGETIASGVLIGKNTIITNYHVSRMAKKDPTKVIFTPGSTKTEDGVYKTPYGQFVAEEINEHPYGQGTDLSIIKLKPNKDGKSAGDLIPPAKIADSIDLQQGDKISLLGYPYNFSTNSLYRSEIEIFNLNSGQYFGYTESGNSGSGLFNLKGELVGIHVGKGGKYNLPIGKFFNTEIGSLYSVDNSLSTLGSDLKKRAELQSHRS"
+    test_input = "MMNRVVLVGRLTKDPELRYTPAGVAVATFTLAVNRTFTNQQGEREADFINCVVWRKPAENVANFLKKGSMAGVDGRVQTRNYEGNDGKRVYVTEIVAESVQFLE"
     # ckpt = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/checkpoint-10000"
     test_one(test_input, ckpt)

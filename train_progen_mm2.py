@@ -17,13 +17,13 @@ from transformers import LlamaForCausalLM, LlamaConfig
 from model.progen.modeling_progen import ProGenForCausalLM
 from model.progen.configuration_progen import ProGenConfig
 
+from model.modeling_ss import MultiModalityCausalLM, MultiModalityConfig
+
 import sys
 sys.path.append('./utils')
 from utils import multimodal_dataset
 
-
 _10TB = 10995116277760
-
 
 def train(ckpt=None):
 
@@ -33,33 +33,30 @@ def train(ckpt=None):
 
     train_lmdb_path = "/cto_studio/xtalpi_lab/temp/lmdb/train_dedup/data.lmdb"
     valid_lmdb_path = "/cto_studio/xtalpi_lab/temp/lmdb/valid/data.lmdb"
-    output_dir = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2sm"
+
+    output_dir = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2mm2"
 
     with open("model/progen/tokenizer.json", 'r') as f:
         progen_tokenizer = Tokenizer.from_str(f.read())
 
-    batch_size = 64
+    batch_size = 32
     gradient_accumulation = 1
     # breakpoint()
 
-    ckpt_path = "/cto_studio/xtalpi_lab/liuzijing/weights/progen2-small"
-    
-    model_config = ProGenConfig.from_pretrained(ckpt_path)
+    #### stage 2
 
-    model_config.torch_dtype = None
-    model_config.gradient_checkpointing = True
-    model_config.use_cache = False
-    # model = ProGenForCausalLM(model_config)
-    model = ProGenForCausalLM.from_pretrained(ckpt_path, use_cache = False, 
-                                              gradient_checkpointing=True,
-                                              torch_dtype=None)
-    # breakpoint()
+    ckpt_path = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2mm1/checkpoint-8000" 
+    model = MultiModalityCausalLM.from_pretrained(ckpt_path, gradient_checkpointing=True, 
+                                                  use_cache = False, torch_dtype=None)
+
     for param in model.parameters():
         param.data = param.data.contiguous()
 
+    print("total parameters", sum(p.numel() for p in model.parameters() if p.requires_grad)) ##trainable parameters
+
     gradient_checkpointing = True
-    save_steps = 100
-    eval_steps = 100
+    save_steps = 1000
+    eval_steps = 1000
     save_total_limit=3
 
     args = TrainingArguments(
@@ -87,11 +84,12 @@ def train(ckpt=None):
         data_seed=54
     )
 
-    train_dataset = multimodal_dataset.ProgenSeqDataset(train_lmdb_path, 
+    train_struct_name = "/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/af_swissprot_str.pkl"
+    train_dataset = multimodal_dataset.SeqStructureDataset(train_lmdb_path, train_struct_name,
                                                 max_length=1024,
                                                 sequence_tokenizer=progen_tokenizer)
     
-    test_dataset = multimodal_dataset.ProgenSeqDataset(valid_lmdb_path, 
+    test_dataset = multimodal_dataset.SeqStructureDataset(valid_lmdb_path, train_struct_name,
                                                 max_length=1024,
                                                 sequence_tokenizer=progen_tokenizer)
 
@@ -101,7 +99,7 @@ def train(ckpt=None):
         args,
         train_dataset=train_dataset,
         eval_dataset=test_dataset,
-        data_collator=multimodal_dataset.collate_fn_gpt
+        data_collator=multimodal_dataset.collate_fn_mm
     )
 
     if ckpt is None:

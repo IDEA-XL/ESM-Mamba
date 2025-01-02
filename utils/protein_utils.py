@@ -1,6 +1,7 @@
 import torch
 import os
 import glob
+import pickle
 
 import numpy as np
 from tqdm import tqdm
@@ -199,4 +200,6 @@ if __name__ == '__main__':
         f0.write('>' + f"{protein}" + '\n' )
         f0.write(protein_chain_d['sequence'] + '\n')
 
-f0.close()
+    with open(str_name, 'wb') as f:
+          pickle.dump(out_str, f)      
+    f0.close()
