@@ -48,8 +48,8 @@ def train(ckpt=None):
 
     #### stage 1
 
-    ckpt_path = "/cto_studio/xtalpi_lab/liuzijing/weights/progen2-small" 
-    config_json = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/model/config.json"
+    ckpt_path = "/cto_studio/xtalpi_lab/liuzijing/weights/progen2-medium" 
+    config_json = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/model/config_medium.json"
     model_config = MultiModalityConfig.from_json_file(config_json)
 
     model_config.torch_dtype = None
@@ -80,11 +80,11 @@ def train(ckpt=None):
     args = TrainingArguments(
         per_device_train_batch_size=batch_size,
         gradient_accumulation_steps=gradient_accumulation,
-        warmup_steps=5000,
-        num_train_epochs=10,
+        warmup_steps=500,
+        num_train_epochs=5,
         # max_steps=500000,
-        learning_rate=4e-4,
-        fp16=True,
+        learning_rate=1e-3,
+        bf16=True,
         logging_steps=1000,
         optim="adamw_torch",
         evaluation_strategy="steps",

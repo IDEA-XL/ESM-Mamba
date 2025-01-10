@@ -86,3 +86,6 @@ if __name__ == "__main__":
         gt_pdb = f"/cto_studio/xtalpi_lab/liuzijing/temp/cameo_202407_202409/{pdb_id}/target.pdb"
         output_path = f"/cto_studio/xtalpi_lab/liuzijing/temp/cameo_202407_202409/{pdb_id}"
         test_one(test_input, model, decoder, output_path)
+
+
+    

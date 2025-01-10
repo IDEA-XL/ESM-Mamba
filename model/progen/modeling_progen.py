@@ -321,6 +321,8 @@ class ProGenModel(ProGenPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
 
+        self.gradient_checkpointing = False
+
         self.embed_dim = config.n_embd
         self.vocab_size = config.vocab_size
         self.wte = nn.Embedding(config.vocab_size, self.embed_dim)
@@ -501,6 +503,7 @@ class ProGenModel(ProGenPreTrainedModel):
                     None,
                     attention_mask,
                     head_mask[i],
+                    use_reentrant=False
                 )
             else:
                 outputs = block(

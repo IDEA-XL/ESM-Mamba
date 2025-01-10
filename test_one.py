@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 
+import glob
 from tokenizers import Tokenizer
 
 from model.progen.modeling_progen import ProGenForCausalLM
@@ -37,16 +38,14 @@ def ESM3_structure_decoder_v0(device: torch.device | str = "cpu"):
     model.load_state_dict(state_dict)
     return model
 
-
-def test_one(input_seq, ckpt_path, 
+@torch.inference_mode()
+def test_one(input_seq, model, ckpt_path,
+             target_name: str = "",
              temperature: float = 1,
-             parallel_size: int = 4):
-    my_device = "cuda"
-
+             parallel_size: int = 4,
+             do_sample: bool = False):
+    
     structure_tokenizer = StructureTokenizer()
-
-    model = MultiModalityCausalLM.from_pretrained(ckpt_path, device_map=my_device, gradient_checkpointing=False, use_cache = True)
-    model = model.to(torch.float16).cuda().eval()
 
     with open("model/progen/tokenizer.json", 'r') as f:
         progen_tokenizer = Tokenizer.from_str(f.read())
@@ -74,11 +73,28 @@ def test_one(input_seq, ckpt_path,
 
         probs = torch.softmax(logits / temperature, dim=-1)
 
-        next_token = torch.multinomial(probs, num_samples=1)
+        # breakpoint() #  probs[0].sort().values[-5:],probs[0].sort().indices[-5:]
+
+        ## multinomial
+        # next_token = torch.multinomial(probs, num_samples=1)
+        if do_sample:
+
+        ## top k
+            top_k_probs, top_k_indices = torch.topk(logits, 5, axis=-1)
+            probs = torch.softmax(top_k_probs, dim=-1)
+            next_token = torch.multinomial(probs, num_samples=1)
+            for k in range(parallel_size):
+                next_token[k] = top_k_indices[k, next_token[k]]
+
+        else:
+             ## greedy
+            next_token = torch.argmax(probs, dim=-1)[:, None]
+
         generated_tokens[:, i] = next_token.squeeze(dim=-1)
 
         inputs_embeds = model.prepare_gen_img_embeds(next_token)
 
+    breakpoint()
     struct_token = generated_tokens
     struct_token = torch.cat((struct_token[:,0:1], struct_token,struct_token[:,-1:]), dim=1)
     struct_token[:,0] = structure_tokenizer.bos_token_id
@@ -94,13 +110,46 @@ def test_one(input_seq, ckpt_path,
         
         chain = ProteinChain.from_atom37(
             coordinates, sequence=input_seq)
-        
-        chain.to_pdb(f"{ckpt_path}/test{i}.pdb")
+
+        chain.to_pdb(f"{ckpt_path}/test_{target_name}{i}.pdb")
 
 
 if __name__ == "__main__":
     ckpt = sys.argv[1]
+    my_device = "cuda"
 
-    test_input = "MMNRVVLVGRLTKDPELRYTPAGVAVATFTLAVNRTFTNQQGEREADFINCVVWRKPAENVANFLKKGSMAGVDGRVQTRNYEGNDGKRVYVTEIVAESVQFLE"
-    # ckpt = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/checkpoint-10000"
-    test_one(test_input, ckpt)
+    # >Q92FR5
+    input_seq = "MMNRVVLVGRLTKDPELRYTPAGVAVATFTLAVNRTFTNQQGEREADFINCVVWRKPAENVANFLKKGSMAGVDGRVQTRNYEGNDGKRVYVTEIVAESVQFLE"
+    target_name = "Q92FR5"
+
+    # O95405_1331
+    # input_seq = "HSRLTEHVAKAFCLALCPHLKLLKEDGMTKLGLRVTLDSDQVGYQAGSNGQPLPSQYMNDLDSALVPVIHGGACQLSEGPVVMELIFYILEN"
+    target_name = "O95405_1331"
+
+    #
+    input_seq = "AMNLIPEDGLPPILISTGVKGDYAVEEKPSQISVMQQLEDGGPDPLVFVLNANLLSMVKIVNYVNRKCWCFTTKGMHAVGQSEIVILLQCLPDEKCLPKDIFNHFVQLYRDALAGNVVSNLGHSFFSQSFLGSKEHGGFLYVTSTYQSLQDLVLPTPPYLFGILIQKWETPWAKVFPIRLMLRLGAEYRLYPCPLFSVRFRKPLFGETGHTIMNLLADFRNYQYTLPVVQGLVVDMEVRKTSIKIPSNRYNEMMKAMNKSNEHVLAGGACFNEKADSHLVCVQNDDGNYQTQAISIHNQPRKVTGASFFVFSGALKSSSGYLAKSSIVEDGVMVQITAENMDSLRQALREMKDFTITCGKADAEEPQEHIHIQWVDDDKNVSKGVVSPIDGKSMETITNVKIFHGSEYKANGKVIRWTEVFF"
+    target_name = "O95405_894"
+
+    # 2hz4
+    # input_seq = "VSPNYDKWEMERTDITMKHKLGGGQYGEVYEGVWKKYSLTVAVKTLKEDTMEVEEFLKEAAVMKEIKHPNLVQLLGVCTREPPFYIITEFMTYGNLLDYLRECNRQEVNAVVLLYMATQISSAMEYLEKKNFIHRDLAARNCLVGENHLVKVADFGLSRLMTGDTYTAHAGAKFPIKWTAPESLAYNKFSIKSDVWAFGVLLWEIATYGMSPYPGIDLSQVYELLEKDYRMERPEGCPEKVYELMRACWQWNPSDRPSFAEIHQAFETMFQES"
+
+    # input_seq = "VSPNYDKWEMERTDITMKHKLGGGQYGEVYEGVWKKYSLTVAVKTLKEDTMEVEEFLKEAAVMKEIKHPNLVQLLGVCTREPPFYIITEFMTYGNLLDYLRECN"
+
+    model = MultiModalityCausalLM.from_pretrained(ckpt, device_map=my_device, gradient_checkpointing=False, use_cache = True)
+    model = model.to(torch.bfloat16).cuda().eval()
+
+    # cameo_dir = "/cto_studio/xtalpi_lab/liuzijing/temp/modeling/2024.10.05"
+    # f_list = glob.glob(cameo_dir + '/*')
+
+    # for f1 in f_list:
+    #     target_name = f1.split("/")[-1]
+    #     fasta_file = f1 + "/target.fasta"
+    #     print(target_name)
+    #     with open(fasta_file, 'r') as f:
+    #         txt = f.read()
+    #         input_seq = txt.split('\n')[-1]
+    #     print(len(input_seq))
+    #     if len(input_seq) > 510:
+    #         continue
+    
+    test_one(input_seq, model, ckpt, target_name)

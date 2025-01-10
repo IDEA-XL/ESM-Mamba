@@ -21,6 +21,15 @@ from esm.utils.misc import slice_python_object_as_numpy
 from esm.utils import encoding
 from esm.utils import decoding
 
+# from esm.models.esm3 import ESM3
+
+# model = ESM3.from_pretrained("esm3_sm_open_v1").to("cuda")
+
+# with torch.autocast(enabled=True, device_type=torch.device("cuda").type, dtype=torch.bfloat16): 
+#     xx_ids = torch.tensor([[1,2,3,4,5]], device="cuda")
+#     xx = model(structure_tokens=xx_ids)
+#     xx.shape
+
 ckpt_root = "/cto_studio/xtalpi_lab/liuzijing/weights/esm3-sm-open-v1/data/weights"
 
 def ESM3_structure_decoder_v0(device: torch.device | str = "cpu"):
@@ -51,20 +60,46 @@ if __name__ == '__main__':
     structure_tokenizer = StructureTokenizer()
     structure_encoder = ESM3_structure_encoder_v0(my_device)
 
-
-    # ### swissprot
     data_dir = '/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed'
     f_list = glob.glob(data_dir + '/*.pkl')
 
     fasta_all = '/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed'
 
-    for f_name in tqdm(f_list):
-        pname = f_name.split("/")[-1].split('.')[0]
-        fasta_name = data_dir + f"/{pname[:-4]}.fasta"
-        str_name = f_name
+    # for f_name in tqdm(f_list):
+    #     pname = f_name.split("/")[-1].split('.')[0]
+    #     fasta_name = data_dir + f"/{pname[:-4]}.fasta"
+    #     str_name = f_name
 
-        with open(fasta_name, 'r') as f:
-            texts = f.read()
+    #     with open(fasta_name, 'r') as f:
+    #         texts = f.read()
+
+    with open("/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/af_swissprot_str.pkl", 'rb') as f:
+        struct_data = pickle.load(f)
+        
+    struct_seq = list(struct_data.keys())
+
+    seq = struct_seq[2]
+    target_name = "O95405_894"
+
+    struct_token = torch.tensor(struct_data[seq], dtype=torch.int64, device=my_device)
+
+    struct_token = torch.cat((struct_token[0:1], struct_token, struct_token[-1:]), dim=0)
+    struct_token[0] = structure_tokenizer.bos_token_id
+    struct_token[-1] = structure_tokenizer.eos_token_id
+
+    coordinates, plddt, ptm = decoding.decode_structure(
+            structure_tokens=struct_token,
+            structure_decoder=ESM3_structure_decoder_v0(my_device),
+            structure_tokenizer=structure_tokenizer,
+            sequence=seq,
+        )
+    
+    chain = ProteinChain.from_atom37(
+        coordinates, sequence=seq)
+    
+    chain.to_pdb(f"/home/liuzijing/workspace/{target_name}.pdb")
+
+
 
         
 
@@ -142,6 +177,7 @@ if __name__ == '__main__':
     # chain = ProteinChain.from_atom37(
     #     coords, sequence=protein.sequence)
     # breakpoint()
+
     # from coordiates to tokens
     # _, _, structure_tokens = encoding.tokenize_structure(
     #             torch.tensor(protein.atom37_positions, dtype=torch.float32),
@@ -197,13 +233,3 @@ if __name__ == '__main__':
     #     coordinates, sequence=protein.sequence)
     
     # chain.to_pdb("/home/liuzijing/workspace/7kn4_A_esm.pdb")
-
-    # chain1 = ProteinChain.from_atom37(
-    #     coordinates1, sequence=sequence1)
-    
-    # chain1.to_pdb("/home/liuzijing/workspace/7kn4_A_esm1.pdb")
-
-    # chain2 = ProteinChain.from_atom37(
-    #     coordinates2, sequence=sequence1)
-    
-    # chain2.to_pdb("/home/liuzijing/workspace/7kn4_A_esm2.pdb")

@@ -112,7 +112,7 @@ if __name__ == '__main__':
                     seq_1 = seq[start_idx:end_idx]
                     pos_ca = protein.atom37_positions[start_idx:end_idx, 1, :]
                     contact_map = np.less(squareform(pdist(pos_ca)), 8.0).astype(np.int64)
-                    long_range = np.greater(squareform(pdist(np.arange(len(seq_1))[:,None])), 12).astype(np.int64)
+                    long_range = np.greater(squareform(pdist(np.arange(len(seq_1))[:, None])), 12).astype(np.int64)
                     if (long_range * contact_map).sum() > len(seq_1):
                         f0.write('>' + f"{uniprot}_{start_idx}" + '\n' )
                         f0.write(seq_1 + '\n')
