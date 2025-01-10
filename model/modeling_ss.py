@@ -11,7 +11,7 @@ from transformers import (
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.configuration_utils import PretrainedConfig
 
-from .progen.modeling_progen import ProGenForCausalLM, ProGenModel
+from .progen.modeling_progen import ProGenForCausalLM,ProGenModel
 from .progen.configuration_progen import ProGenConfig
 
 
@@ -287,7 +287,6 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         seq_ids[structure_seq_mask] = 0
         inputs_embeds = self.language_model.transformer.wte(seq_ids)
         inputs_embeds[structure_seq_mask] = structure_embeds[structure_seq_mask]
-        breakpoint()
 
         transformer_outputs = self.language_model.transformer(
             past_key_values=past_key_values,
@@ -309,6 +308,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         # lm_logits[structure_seq_mask] = structure_logits[structure_seq_mask]
 
         loss = None
+        # num_items_in_batch = structure_seq_mask.view(-1).sum()
         if labels is not None:
             # Shift so that tokens < n predict n
             shift_logits = lm_logits[..., :-1, :].contiguous()
