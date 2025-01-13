@@ -39,13 +39,13 @@ def train(ckpt=None):
     with open("model/progen/tokenizer.json", 'r') as f:
         progen_tokenizer = Tokenizer.from_str(f.read())
 
-    batch_size = 8
+    batch_size = 32
     gradient_accumulation = 1
     # breakpoint()
 
     #### stage 2
 
-    ckpt_path = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2mm1/small-checkpoint-4000" 
+    ckpt_path = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2mm1/checkpoint-4000" 
     model = MultiModalityCausalLM.from_pretrained(ckpt_path, gradient_checkpointing=True, 
                                                   use_cache = False, torch_dtype=None)
 
@@ -87,11 +87,11 @@ def train(ckpt=None):
     )
 
     train_struct_name = "/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/af_swissprot_str.pkl"
-    train_dataset = multimodal_dataset.LimitedSeqStructureDataset(train_lmdb_path, train_struct_name,
+    train_dataset = multimodal_dataset.SeqStructureDataset(train_lmdb_path, train_struct_name,
                                                 max_length=1024,
                                                 sequence_tokenizer=progen_tokenizer)
     
-    test_dataset = multimodal_dataset.LimitedSeqStructureDataset(valid_lmdb_path, train_struct_name,
+    test_dataset = multimodal_dataset.SeqStructureDataset(valid_lmdb_path, train_struct_name,
                                                 max_length=1024,
                                                 sequence_tokenizer=progen_tokenizer)
 

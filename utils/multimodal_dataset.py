@@ -366,6 +366,7 @@ class SeqStructureDataset(torch.utils.data.Dataset):
 class LimitedSeqStructureDataset(torch.utils.data.Dataset):
     """
     Selected structure and sequence dataset in the format of "1ABC23sAsB4" or "2CBA14sBsA3"
+    For testing of overfitting
     Parameters:
         lmdb_path (`str`):
             Path to the sequence data.

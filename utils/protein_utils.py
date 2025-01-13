@@ -1,3 +1,5 @@
+# process PDB mmcif_files to fasta and ESM3 structure tokens
+
 import torch
 import os
 import glob
@@ -201,5 +203,5 @@ if __name__ == '__main__':
         f0.write(protein_chain_d['sequence'] + '\n')
 
     with open(str_name, 'wb') as f:
-          pickle.dump(out_str, f)      
+      pickle.dump(out_str, f)      
     f0.close()

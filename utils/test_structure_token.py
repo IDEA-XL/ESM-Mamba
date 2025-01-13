@@ -1,3 +1,4 @@
+# test ESM3 structure token and ESM3 model
 from typing import Callable
 
 import torch

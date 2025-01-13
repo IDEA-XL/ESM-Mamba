@@ -1,3 +1,5 @@
+### Process pdb files into fasta and ESM3 structure tokens
+
 from typing import Callable
 
 import torch
