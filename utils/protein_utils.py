@@ -142,7 +142,7 @@ if __name__ == '__main__':
     structure_tokenizer = StructureTokenizer()
     structure_encoder = ESM3_structure_encoder_v0(my_device)
 
-    data_dir = "/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed" #output dir
+    data_dir = "/cto_studio/xtalpi_lab/Datasets/PDB_processed" #output dir
 
     cif_folder = '/cto_studio/xtalpi_lab/Datasets/alphafold-datasets/alphafold3/pdb_mmcif/mmcif_files'
 
@@ -196,12 +196,12 @@ if __name__ == '__main__':
         
         structure_tokens[1:-1][~s_mask] = -100 # 2246 to -100
         
-        struct = structure_tokens.cpu().numpy()
+        struct = structure_tokens[1:-1].cpu().numpy() 
         out_str[protein] = struct
 
         f0.write('>' + f"{protein}" + '\n' )
         f0.write(protein_chain_d['sequence'] + '\n')
 
     with open(str_name, 'wb') as f:
-      pickle.dump(out_str, f)      
+      pickle.dump(out_str, f)
     f0.close()

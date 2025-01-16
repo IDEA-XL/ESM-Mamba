@@ -74,13 +74,21 @@ if __name__ == '__main__':
     #     with open(fasta_name, 'r') as f:
     #         texts = f.read()
 
-    with open("/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/af_swissprot_str.pkl", 'rb') as f:
+    qfasta = "MQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVL"
+    # /cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/UP000002311.fasta
+
+    # /cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/UP000002485.fasta
+
+    with open("/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/UP000002485_str.pkl", 'rb') as f:
         struct_data = pickle.load(f)
         
     struct_seq = list(struct_data.keys())
 
-    seq = struct_seq[2]
-    target_name = "O95405_894"
+    # seq = struct_seq[2]
+    # target_name = "O95405_894"
+
+    seq = qfasta
+    target_name = "UP000002485"
 
     struct_token = torch.tensor(struct_data[seq], dtype=torch.int64, device=my_device)
 

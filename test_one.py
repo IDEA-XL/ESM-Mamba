@@ -73,7 +73,7 @@ def test_one(input_seq, model, ckpt_path,
 
         probs = torch.softmax(logits / temperature, dim=-1)
 
-        breakpoint() #  probs[0].sort().values[-5:],probs[0].sort().indices[-5:]
+        # breakpoint() #  probs[0].sort().values[-5:],probs[0].sort().indices[-5:]
 
         ## multinomial
         # next_token = torch.multinomial(probs, num_samples=1)
@@ -94,7 +94,6 @@ def test_one(input_seq, model, ckpt_path,
 
         inputs_embeds = model.prepare_gen_img_embeds(next_token)
 
-    breakpoint()
     struct_token = generated_tokens
     struct_token = torch.cat((struct_token[:,0:1], struct_token,struct_token[:,-1:]), dim=1)
     struct_token[:,0] = structure_tokenizer.bos_token_id
@@ -111,7 +110,7 @@ def test_one(input_seq, model, ckpt_path,
         chain = ProteinChain.from_atom37(
             coordinates, sequence=input_seq)
 
-        chain.to_pdb(f"{ckpt_path}/test_{target_name}{i}.pdb")
+        chain.to_pdb(f"{ckpt_path}/pre_{target_name}{i}.pdb")
 
 
 if __name__ == "__main__":
@@ -119,8 +118,8 @@ if __name__ == "__main__":
     my_device = "cuda"
 
     # >Q92FR5
-    input_seq = "MMNRVVLVGRLTKDPELRYTPAGVAVATFTLAVNRTFTNQQGEREADFINCVVWRKPAENVANFLKKGSMAGVDGRVQTRNYEGNDGKRVYVTEIVAESVQFLE"
-    target_name = "Q92FR5"
+    # input_seq = "MMNRVVLVGRLTKDPELRYTPAGVAVATFTLAVNRTFTNQQGEREADFINCVVWRKPAENVANFLKKGSMAGVDGRVQTRNYEGNDGKRVYVTEIVAESVQFLE"
+    # target_name = "Q92FR5"
 
     # O95405_1331
     # input_seq = "HSRLTEHVAKAFCLALCPHLKLLKEDGMTKLGLRVTLDSDQVGYQAGSNGQPLPSQYMNDLDSALVPVIHGGACQLSEGPVVMELIFYILEN"
@@ -138,18 +137,18 @@ if __name__ == "__main__":
     model = MultiModalityCausalLM.from_pretrained(ckpt, device_map=my_device, gradient_checkpointing=False, use_cache = True)
     model = model.to(torch.bfloat16).cuda().eval()
 
-    # cameo_dir = "/cto_studio/xtalpi_lab/liuzijing/temp/modeling/2024.10.05"
-    # f_list = glob.glob(cameo_dir + '/*')
+    cameo_dir = "/cto_studio/xtalpi_lab/liuzijing/temp/modeling/2024.10.05"
+    f_list = glob.glob(cameo_dir + '/*')
 
-    # for f1 in f_list:
-    #     target_name = f1.split("/")[-1]
-    #     fasta_file = f1 + "/target.fasta"
-    #     print(target_name)
-    #     with open(fasta_file, 'r') as f:
-    #         txt = f.read()
-    #         input_seq = txt.split('\n')[-1]
-    #     print(len(input_seq))
-    #     if len(input_seq) > 510:
-    #         continue
-    
-    test_one(input_seq, model, ckpt, target_name)
+    for f1 in f_list:
+        target_name = f1.split("/")[-1]
+        fasta_file = f1 + "/target.fasta"
+        print(target_name)
+        with open(fasta_file, 'r') as f:
+            txt = f.read()
+            input_seq = txt.split('\n')[-1]
+        print(len(input_seq))
+        if len(input_seq) > 510:
+            continue
+        
+        test_one(input_seq, model, ckpt, target_name)

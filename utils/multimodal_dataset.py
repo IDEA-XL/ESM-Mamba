@@ -6,6 +6,7 @@ import os
 import json
 import pickle
 
+import pandas as pd
 import numpy as np
 from typing import Union
 
@@ -15,8 +16,10 @@ from esm.utils import encoding
 _10TB = 10995116277760
 SEQ_OFFSET = 33
 
-class SeqStructDataset(torch.utils.data.Dataset):
+class Seq40StructDataset(torch.utils.data.Dataset):
     """
+    Structure and sequence dataset in the format of "1ABC23sAsB4" or "2CBA14sBsA3"
+    sampled by sequence identity 40%
     Parameters:
         lmdb_path (`str`):
             Path to the sequence data.
@@ -31,29 +34,66 @@ class SeqStructDataset(torch.utils.data.Dataset):
     """
     def __init__(self,
                  lmdb_path: str,
-	             struct_path: str,
+	             struct_path: list,
 	             max_length: int = 512,
                  seq_ratio: int = 1,
-				 struct_only: bool = False):
+				 struct_only: bool = False,
+                 sequence_tokenizer = EsmSequenceTokenizer()):
         super().__init__()
 
         self.seq_ratio = seq_ratio
 
         self.lmdb_path = lmdb_path
-        self.sequence_tokenizer = EsmSequenceTokenizer()
+        self.sequence_tokenizer = sequence_tokenizer
         self.structure_tokenizer = StructureTokenizer()
+        self.struct_inf_token_id = 2246
         # self.aa = [k for k in self.sequence_tokenizer.get_vocab().keys()]
         self.max_length = max_length
         self.struct_only = struct_only
 
-        with open(struct_path, 'rb') as f:
-            self.struct_data = pickle.load(f)
-        
-        with open("/cto_studio/xtalpi_lab/Datasets/af_swissprot_plddt.pkl", 'rb') as f:
-            self.seq2plddt = pickle.load(f)
+        self.struct_token = {}
+        self.struct_seq = {}
+        self.cluster2id = {}
+        self.clusters = {}
+        data_names = ["AF2_ebi", "PDB"]
+        self.data_names = data_names
+        self.len_struct = {}
+        for folder in struct_path:
+            if data_names[0] in folder:
+                data_idx = 0
+                self.cluster2id[data_names[data_idx]] = {}
+                cluster_path = os.path.join(folder, "clusterRes_cluster.tsv")
+                fasta_path = os.path.join(folder, "af2_ebi.fasta")
+                struct_path = os.path.join(folder, "af2_ebi_str.pkl")
+            elif data_names[1] in folder:
+                data_idx = 1
+                self.cluster2id[data_names[data_idx]] = {}
+                cluster_path = os.path.join(folder, "clusterRes_cluster.tsv")
+                fasta_path = os.path.join(folder, "pdb20220928.fasta")
+                struct_path = os.path.join(folder, "pdb20220928_str1.pkl")
 
-        self.len_struct = len(self.struct_data)
-        self.struct_seq = list(self.struct_data.keys())
+            df_cluster = pd.read_csv(cluster_path, sep="\t", header=None)
+            for x in df_cluster.itertuples():
+                cluster, member = x[1], x[2]
+                if cluster not in self.cluster2id[data_names[data_idx]]:
+                    self.cluster2id[data_names[data_idx]][cluster] = [member]
+                else:
+                    self.cluster2id[data_names[data_idx]][cluster].append(member)
+            self.len_struct[data_names[data_idx]] = len(self.cluster2id[data_names[data_idx]])
+            self.clusters[data_names[data_idx]] = list(self.cluster2id[data_names[data_idx]].keys())
+
+            with open(struct_path, 'rb') as f:
+                self.struct_token[data_names[data_idx]] = pickle.load(f)
+
+            uniprot = []
+            fasta_seqs = []
+            with open(fasta_path, "r") as f:
+                for line in f:
+                    if line.startswith('>'):
+                        uniprot.append(line.strip())
+                    else:
+                        fasta_seqs.append(line.strip())
+                self.struct_seq[data_names[data_idx]] = dict(zip(uniprot, fasta_seqs))
 
         self.env = None
         self.txn = None
@@ -90,76 +130,55 @@ class SeqStructDataset(torch.utils.data.Dataset):
         return value
 
     def __len__(self):
-        return int(self.seq_ratio * self.len_struct)
+        """
+        the length is the length of smaller dataset (PDB dataset)
+        """
+        return int(min(list(self.len_struct.values())))
     
     def __getitem__(self, index:int):
         if index % self.seq_ratio == 0: # 1/seq_ratio prob. using structure
             index = index // self.seq_ratio
-            seq = self.struct_seq[index]
-            struct = self.struct_data[seq] # <S_BOS> SS <S_EOS>
+            data_idx = random.randint(0,1)
+            data_key = self.data_names[data_idx]
 
-            plddt = self.seq2plddt[seq]
-            idx = np.arange(len(seq))
+            cluster_idx = random.randint(0, self.len_struct[data_key] - 1)
+            clust = self.clusters[data_key][cluster_idx]
+            prot_ids = self.cluster2id[data_key][clust]
+            seqs = []
+            for pid in prot_ids:
+                seqs.append(self.struct_seq[data_key][">"+pid])
+            seqs_set = list(set(seqs))
+            tmp_idx = random.randint(0, len(seqs_set) - 1)
+            seq = seqs_set[tmp_idx]
+            prot_id = prot_ids[seqs.index(seq)]
+            struct = self.struct_token[data_key][prot_id]
             
-            idx = idx[plddt > 70] 
-            if len(idx) < 1:
-                token_ids = encoding.tokenize_sequence(
-                    seq, self.sequence_tokenizer, add_special_tokens=True
-                )        # <bos> AA <eos>
-                labels = torch.full((len(token_ids),), -100, dtype=torch.long)
-                for i in range(len(token_ids)):
-                    labels[i] = token_ids[i]
-                return token_ids, labels
-            else:
-                current_seq = [idx[0]]
-                seqs = []
-                for i in range(1, len(idx)):
-                    if idx[i] == idx[i-1] + 1:
-                        current_seq.append(idx[i])
-                    else:
-                        if len(current_seq) > 15:
-                            seqs.append(current_seq)
-                        current_seq = [idx[i]]
+            # cut to max_len/2 - 2 = 510  <bos> AAA <eos> <S_BOS> SSS <S_EOS>
+            start_offset = random.randint(0, max(0, len(seq) - self.max_length//2+2))
+            start_idx = start_offset
+            end_idx = start_idx + min(self.max_length//2-2, len(seq))
 
-                if len(current_seq) > 15:
-                    seqs.append(current_seq)
-                if len(seqs) < 1:
-                    token_ids = encoding.tokenize_sequence(
-                        seq, self.sequence_tokenizer, add_special_tokens=True
-                    )        # <bos> AA <eos>
-                    labels = torch.full((len(token_ids),), -100, dtype=torch.long)
-                    for i in range(len(token_ids)):
-                        labels[i] = token_ids[i]
-                    return token_ids, labels
-                else:
-                    seq_idx = random.randint(0, len(seqs)-1)
-
-            # cut to max len of 512
-            start_offset = random.randint(0, max(0, len(seqs[seq_idx]) - self.max_length//2))
-            start_idx = seqs[seq_idx][0] + start_offset
-            end_idx = start_idx + min(self.max_length//2, len(seqs[seq_idx]))
-
-            # start_idx = random.randint(0, max(0, len(seq) - self.max_length//2))
-            # end_idx = start_idx + min(self.max_length//2, len(seq))
-            # <S_BOS> SS[start:end] <S_EOS>
-            struct = torch.tensor(np.concatenate((struct[0:1], struct[start_idx+1:end_idx+1], struct[-1:])), dtype=torch.int64)
+            struct_seq = torch.tensor(struct[start_idx:end_idx], dtype=torch.int64)
             seq = seq[start_idx:end_idx]
-            # <bos> AA <eos>
-            sequence_tokens = encoding.tokenize_sequence(seq, self.sequence_tokenizer, add_special_tokens=True)  
-            
-            # <bos> AA <eos> <S_BOS> SS <S_EOS> 
-            token_ids = torch.cat((sequence_tokens, struct+SEQ_OFFSET))
-            labels = torch.full((len(token_ids),), -100, dtype=torch.long)
-            if self.struct_only:
-                for i in range(len(sequence_tokens)):
-                    labels[i+end_idx-start_idx+2] = token_ids[i+end_idx-start_idx+2]
-            else:
-                for i in range(len(sequence_tokens)):
-                    labels[i] = token_ids[i]
-                    labels[i+end_idx-start_idx+2] = token_ids[i+end_idx-start_idx+2]
-            return token_ids, labels
-            # TODO cut to max len of 512 according to plddt 
 
+            # seq+structure 1 AB 2 3 SaSb 4 or 2 BA 1 4 SbSa 3
+            if random.random() > 0.5:
+                seq = "1" + seq + "2" + "3" + seq + "4"
+            else:
+                seq = "2" + seq[::-1] + "1" + "4" + seq + "3"
+                struct_seq = torch.flip(struct_seq, dims=[0])
+
+            token_ids = torch.tensor(self.sequence_tokenizer.encode(seq).ids, dtype=torch.long)
+            structure_seq_mask: torch.BoolTensor = token_ids == -100
+            structure_seq_mask[len(struct_seq)+3:-1] = True
+            
+            labels = torch.full((len(token_ids),), -100, dtype=torch.long)
+            labels[structure_seq_mask] = struct_seq
+
+            struct_seq[struct_seq == -100] = 2246
+            token_ids[structure_seq_mask] = struct_seq
+
+            return token_ids, labels, structure_seq_mask
         else:  # sequence
             index = random.randint(0, self.len_seq-1)
             index = f"{index:09d}"
@@ -172,6 +191,7 @@ class SeqStructDataset(torch.utils.data.Dataset):
             for i in range(len(token_ids)):
                 labels[i] = token_ids[i]
             return token_ids, labels   
+        
         
 
 class SeqDataset(torch.utils.data.Dataset):
@@ -324,7 +344,7 @@ class SeqStructureDataset(torch.utils.data.Dataset):
         if index % self.seq_ratio == 0: # 1/seq_ratio prob. using structure
             index = index // self.seq_ratio
             seq = self.struct_seq[index]
-            struct = self.struct_data[seq] # <S_BOS> SS <S_EOS>
+            struct = self.struct_data[seq] # sAsBsC
             # cut to max_len/2 - 2 = 510  <bos> AAA <eos> <S_BOS> SSS <S_EOS>
             start_offset = random.randint(0, max(0, len(seq) - self.max_length//2+2))
             start_idx = start_offset
