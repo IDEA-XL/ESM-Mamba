@@ -86,6 +86,7 @@ def train(ckpt=None):
         num_train_epochs=70,
         # max_steps=500000,
         learning_rate=1e-3,
+        lr_scheduler_type="constant_with_warmup",
         bf16=True,
         logging_steps=1000,
         optim="adamw_torch",

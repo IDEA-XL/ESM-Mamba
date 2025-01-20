@@ -1,4 +1,5 @@
 import torch
+import os
 import numpy as np
 
 import glob
@@ -99,6 +100,9 @@ def test_one(input_seq, model, ckpt_path,
     struct_token[:,0] = structure_tokenizer.bos_token_id
     struct_token[:,-1] = structure_tokenizer.eos_token_id
 
+    if not os.path.exists(f"{ckpt_path}/predictions"):
+        os.mkdir(f"{ckpt_path}/predictions")
+
     for i in range(struct_token.shape[0]):
         coordinates, plddt, ptm = decoding.decode_structure(
                 structure_tokens=struct_token[i],
@@ -110,7 +114,7 @@ def test_one(input_seq, model, ckpt_path,
         chain = ProteinChain.from_atom37(
             coordinates, sequence=input_seq)
 
-        chain.to_pdb(f"{ckpt_path}/pre_{target_name}{i}.pdb")
+        chain.to_pdb(f"{ckpt_path}/predictions/pre_{target_name}{i}.pdb")
 
 
 if __name__ == "__main__":
@@ -118,8 +122,8 @@ if __name__ == "__main__":
     my_device = "cuda"
 
     # >Q92FR5
-    # input_seq = "MMNRVVLVGRLTKDPELRYTPAGVAVATFTLAVNRTFTNQQGEREADFINCVVWRKPAENVANFLKKGSMAGVDGRVQTRNYEGNDGKRVYVTEIVAESVQFLE"
-    # target_name = "Q92FR5"
+    input_seq = "MMNRVVLVGRLTKDPELRYTPAGVAVATFTLAVNRTFTNQQGEREADFINCVVWRKPAENVANFLKKGSMAGVDGRVQTRNYEGNDGKRVYVTEIVAESVQFLE"
+    target_name = "Q92FR5"
 
     # O95405_1331
     # input_seq = "HSRLTEHVAKAFCLALCPHLKLLKEDGMTKLGLRVTLDSDQVGYQAGSNGQPLPSQYMNDLDSALVPVIHGGACQLSEGPVVMELIFYILEN"
@@ -130,12 +134,14 @@ if __name__ == "__main__":
     # target_name = "O95405_894"
 
     # 2hz4
-    # input_seq = "VSPNYDKWEMERTDITMKHKLGGGQYGEVYEGVWKKYSLTVAVKTLKEDTMEVEEFLKEAAVMKEIKHPNLVQLLGVCTREPPFYIITEFMTYGNLLDYLRECNRQEVNAVVLLYMATQISSAMEYLEKKNFIHRDLAARNCLVGENHLVKVADFGLSRLMTGDTYTAHAGAKFPIKWTAPESLAYNKFSIKSDVWAFGVLLWEIATYGMSPYPGIDLSQVYELLEKDYRMERPEGCPEKVYELMRACWQWNPSDRPSFAEIHQAFETMFQES"
-
+    input_seq = "VSPNYDKWEMERTDITMKHKLGGGQYGEVYEGVWKKYSLTVAVKTLKEDTMEVEEFLKEAAVMKEIKHPNLVQLLGVCTREPPFYIITEFMTYGNLLDYLRECNRQEVNAVVLLYMATQISSAMEYLEKKNFIHRDLAARNCLVGENHLVKVADFGLSRLMTGDTYTAHAGAKFPIKWTAPESLAYNKFSIKSDVWAFGVLLWEIATYGMSPYPGIDLSQVYELLEKDYRMERPEGCPEKVYELMRACWQWNPSDRPSFAEIHQAFETMFQES"
+    target_name = "2hz4"
     # input_seq = "VSPNYDKWEMERTDITMKHKLGGGQYGEVYEGVWKKYSLTVAVKTLKEDTMEVEEFLKEAAVMKEIKHPNLVQLLGVCTREPPFYIITEFMTYGNLLDYLRECN"
 
     model = MultiModalityCausalLM.from_pretrained(ckpt, device_map=my_device, gradient_checkpointing=False, use_cache = True)
     model = model.to(torch.bfloat16).cuda().eval()
+
+    # test_one(input_seq, model, ckpt, target_name)
 
     cameo_dir = "/cto_studio/xtalpi_lab/liuzijing/temp/modeling/2024.10.05"
     f_list = glob.glob(cameo_dir + '/*')

@@ -34,7 +34,7 @@ def train(ckpt=None):
     train_lmdb_path = "/cto_studio/xtalpi_lab/temp/lmdb/train_dedup/data.lmdb"
     valid_lmdb_path = "/cto_studio/xtalpi_lab/temp/lmdb/valid/data.lmdb"
 
-    output_dir = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2mm2test"
+    output_dir = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2mm2medium_pdb"
 
     with open("model/progen/tokenizer.json", 'r') as f:
         progen_tokenizer = Tokenizer.from_str(f.read())
@@ -45,7 +45,7 @@ def train(ckpt=None):
 
     #### stage 2
 
-    ckpt_path = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2mm1/checkpoint-4000" 
+    ckpt_path = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2mm1/medium-pdb-checkpoint-5000" 
     model = MultiModalityCausalLM.from_pretrained(ckpt_path, gradient_checkpointing=True, 
                                                   use_cache = False, torch_dtype=None)
 
@@ -55,20 +55,20 @@ def train(ckpt=None):
     print("total parameters", sum(p.numel() for p in model.parameters() if p.requires_grad)) ##trainable parameters
 
     gradient_checkpointing = True
-    save_steps = 1000
-    eval_steps = 1000
+    save_steps = 2000
+    eval_steps = 2000
     save_total_limit=5
 
     args = TrainingArguments(
         per_device_train_batch_size=batch_size,
         gradient_accumulation_steps=gradient_accumulation,
-        warmup_steps=2000,
-        num_train_epochs=30,
+        warmup_steps=3000,
+        num_train_epochs=500,
         # max_steps=500000,
         learning_rate=1e-4,
         lr_scheduler_type="constant_with_warmup",
         bf16=True,
-        logging_steps=1000,
+        logging_steps=2000,
         optim="adamw_torch",
         adam_beta2=0.95,
         eval_strategy="steps",
@@ -86,10 +86,15 @@ def train(ckpt=None):
         data_seed=54
     )
 
-    train_struct_name = "/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/af_swissprot_str.pkl"
-    train_dataset = multimodal_dataset.SeqStructureDataset(train_lmdb_path, train_struct_name,
+    train_struct_name = ["/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/", "/cto_studio/xtalpi_lab/Datasets/PDB_processed/"]
+    train_dataset = multimodal_dataset.Seq40StructDataset(train_lmdb_path, train_struct_name,
                                                 max_length=1024,
                                                 sequence_tokenizer=progen_tokenizer)
+
+    train_struct_name = "/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/UP000325664_str.pkl"
+    # train_dataset = multimodal_dataset.SeqStructureDataset(train_lmdb_path, train_struct_name,
+    #                                             max_length=1024,
+    #                                             sequence_tokenizer=progen_tokenizer)
     
     test_dataset = multimodal_dataset.SeqStructureDataset(valid_lmdb_path, train_struct_name,
                                                 max_length=1024,
