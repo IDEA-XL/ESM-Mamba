@@ -11,24 +11,24 @@ local_rank = None
 
 @dataclass
 class DataArguments:
-    train_lmdb_path: str = field(default=f"/cto_studio/xtalpi_lab/temp/lmdb/train_dedup/data.lmdb")
-    valid_lmdb_path: str = field(default=f"/cto_studio/xtalpi_lab/temp/lmdb/valid/data.lmdb")
+    train_lmdb_path: str = field(default=f"/cto_labs/liuzijing/datasets/lmdb/train_dedup/data.lmdb")
+    valid_lmdb_path: str = field(default=f"/cto_labs/liuzijing/datasets/lmdb/valid/data.lmdb")
     train_struct_path: list[str] = field(default_factory=lambda: [
-        "/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/",
-        "/cto_studio/xtalpi_lab/Datasets/PDB_processed/"
+        "/cto_labs/liuzijing/datasets/AF2_ebi_processed/",
+        "/cto_labs/liuzijing/datasets/PDB_processed/"
     ])
-    valid_struct_path: str = field(default="/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/UP000325664_str.pkl")
+    valid_struct_path: str = field(default="/cto_labs/liuzijing/datasets/AF2_ebi_processed/UP000325664_str.pkl")
 
 @dataclass
 class ModelArguments:
     model_name_or_path: str = field(default=f"/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2mm1/medium-pdb-checkpoint-5000")
-    model_config_json: str = field(default=f"/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/model/config_small.json")
+    model_config_json: str = field(default=f"/home/liuzijing/workspace/ESM-Mamba/janus_prot/model/config_large.json")
     tokenizer_path: str = field(default=f"/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/model/progen/tokenizer.json")
     use_cache: bool = field(default=False)
     model_max_length: int = field(default=1024)
 
 @dataclass
-class TrainingArguments:
+class TrainingArguments(transformers.TrainingArguments):
     cont_ckpt: str = field(default=None)
 
 
@@ -41,7 +41,7 @@ def train():
     local_rank = training_args.local_rank
     compute_dtype = torch.float16 if training_args.fp16 else (torch.bfloat16 if training_args.bf16 else torch.float32)
 
-    with open("model/progen/tokenizer.json", 'r') as f:
+    with open(model_args.tokenizer_path, 'r') as f:
         progen_tokenizer = Tokenizer.from_str(f.read())
 
     model = MultiModalityCausalLM.from_pretrained(
