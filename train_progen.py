@@ -6,6 +6,7 @@ import os
 import json
 
 import numpy as np
+from torch import nn
 from typing import Union
 from tokenizers import Tokenizer
 
@@ -33,16 +34,16 @@ def train(ckpt=None):
 
     train_lmdb_path = "/cto_studio/xtalpi_lab/temp/lmdb/train_dedup/data.lmdb"
     valid_lmdb_path = "/cto_studio/xtalpi_lab/temp/lmdb/valid/data.lmdb"
-    output_dir = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2sm"
+    output_dir = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2large"
 
     with open("model/progen/tokenizer.json", 'r') as f:
         progen_tokenizer = Tokenizer.from_str(f.read())
 
-    batch_size = 64
+    batch_size = 1
     gradient_accumulation = 1
     # breakpoint()
 
-    ckpt_path = "/cto_studio/xtalpi_lab/liuzijing/weights/progen2-small"
+    ckpt_path = "/cto_studio/xtalpi_lab/liuzijing/weights/progen2-large1"
     
     model_config = ProGenConfig.from_pretrained(ckpt_path)
 
@@ -53,13 +54,31 @@ def train(ckpt=None):
     model = ProGenForCausalLM.from_pretrained(ckpt_path, use_cache = False, 
                                               gradient_checkpointing=True,
                                               torch_dtype=None)
-    # breakpoint()
+
+    run_sm = False
+    if run_sm:
+        new_lm_head = nn.Linear(model.config.n_embd, 32)
+        new_wte = nn.Embedding(32, model.config.n_embd)
+        with torch.no_grad():
+            new_lm_head.weight = nn.Parameter(model.lm_head.weight[0:32])
+            new_lm_head.bias = nn.Parameter(model.lm_head.bias[0:32])
+            new_wte.weight = nn.Parameter(model.transformer.wte.weight[0:32])
+        model.config.vocab_size = 32
+        model.transformer.vocab_size = 32
+        model.lm_head = new_lm_head
+        model.transformer.wte = new_wte
+
     for param in model.parameters():
         param.data = param.data.contiguous()
 
+    ## freeze progen
+    for param in model.transformer.parameters():
+        param.requires_grad = False
+    model.transformer.eval()
+
     gradient_checkpointing = True
-    save_steps = 100
-    eval_steps = 100
+    save_steps = 10
+    eval_steps = 10
     save_total_limit=3
 
     args = TrainingArguments(
@@ -68,7 +87,7 @@ def train(ckpt=None):
         warmup_steps=5000,
         num_train_epochs=10,
         # max_steps=500000,
-        learning_rate=4e-5,
+        learning_rate=4e-8,
         fp16=True,
         logging_steps=1000,
         optim="adamw_torch",
@@ -103,6 +122,7 @@ def train(ckpt=None):
         eval_dataset=test_dataset,
         data_collator=multimodal_dataset.collate_fn_gpt
     )
+    breakpoint()
 
     if ckpt is None:
         trainer.train()

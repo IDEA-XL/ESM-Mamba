@@ -125,11 +125,11 @@ chi_pi_periodic = [
 # format: [atomname, group_idx, rel_position]
 rigid_group_atom_positions = {
     'ALA': [
-        ['N', 0, (-0.525, 1.363, 0.000)],
-        ['CA', 0, (0.000, 0.000, 0.000)],
-        ['C', 0, (1.526, -0.000, -0.000)],
-        ['CB', 0, (-0.529, -0.774, -1.205)],
-        ['O', 3, (0.627, 1.062, 0.000)],
+        ['N', 0, (-0.525, 1.363, 0.000)], # - + - 
+        ['CA', 0, (0.000, 0.000, 0.000)], # 
+        ['C', 0, (1.526, -0.000, -0.000)],# - + -
+        ['CB', 0, (-0.529, -0.774, -1.205)], # - + -
+        ['O', 3, (0.627, 1.062, 0.000)],  # - + -
     ],
     'ARG': [
         ['N', 0, (-0.524, 1.362, -0.000)],
@@ -333,6 +333,20 @@ rigid_group_atom_positions = {
         ['CG2', 4, (0.533, -0.776, 1.203)],
     ],
 }
+
+for k, v in rigid_group_atom_positions.items():
+  if k == "GLY":
+    for idx in range(3):
+      temp_list = list(v[idx][2])
+      temp_list[0] = - temp_list[0]
+      temp_list[2] = - temp_list[2]
+      v[idx][2] = tuple(temp_list)
+  else:
+    for idx in range(4):
+      temp_list = list(v[idx][2])
+      temp_list[0] = - temp_list[0]
+      temp_list[2] = - temp_list[2]
+      v[idx][2] = tuple(temp_list)
 
 # A list of atoms (excluding hydrogen) for each AA type. PDB naming convention.
 residue_atoms = {

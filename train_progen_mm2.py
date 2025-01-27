@@ -34,18 +34,18 @@ def train(ckpt=None):
     train_lmdb_path = "/cto_studio/xtalpi_lab/temp/lmdb/train_dedup/data.lmdb"
     valid_lmdb_path = "/cto_studio/xtalpi_lab/temp/lmdb/valid/data.lmdb"
 
-    output_dir = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2mm2medium_pdb"
+    output_dir = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2large"
 
     with open("model/progen/tokenizer.json", 'r') as f:
         progen_tokenizer = Tokenizer.from_str(f.read())
 
-    batch_size = 32
+    batch_size = 1
     gradient_accumulation = 1
     # breakpoint()
 
     #### stage 2
 
-    ckpt_path = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2mm1/medium-pdb-checkpoint-5000" 
+    ckpt_path = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2mm1/large-checkpoint-4000" 
     model = MultiModalityCausalLM.from_pretrained(ckpt_path, gradient_checkpointing=True, 
                                                   use_cache = False, torch_dtype=None)
 

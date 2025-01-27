@@ -134,27 +134,27 @@ if __name__ == "__main__":
     # target_name = "O95405_894"
 
     # 2hz4
-    input_seq = "VSPNYDKWEMERTDITMKHKLGGGQYGEVYEGVWKKYSLTVAVKTLKEDTMEVEEFLKEAAVMKEIKHPNLVQLLGVCTREPPFYIITEFMTYGNLLDYLRECNRQEVNAVVLLYMATQISSAMEYLEKKNFIHRDLAARNCLVGENHLVKVADFGLSRLMTGDTYTAHAGAKFPIKWTAPESLAYNKFSIKSDVWAFGVLLWEIATYGMSPYPGIDLSQVYELLEKDYRMERPEGCPEKVYELMRACWQWNPSDRPSFAEIHQAFETMFQES"
-    target_name = "2hz4"
+    # input_seq = "VSPNYDKWEMERTDITMKHKLGGGQYGEVYEGVWKKYSLTVAVKTLKEDTMEVEEFLKEAAVMKEIKHPNLVQLLGVCTREPPFYIITEFMTYGNLLDYLRECNRQEVNAVVLLYMATQISSAMEYLEKKNFIHRDLAARNCLVGENHLVKVADFGLSRLMTGDTYTAHAGAKFPIKWTAPESLAYNKFSIKSDVWAFGVLLWEIATYGMSPYPGIDLSQVYELLEKDYRMERPEGCPEKVYELMRACWQWNPSDRPSFAEIHQAFETMFQES"
+    # target_name = "2hz4"
     # input_seq = "VSPNYDKWEMERTDITMKHKLGGGQYGEVYEGVWKKYSLTVAVKTLKEDTMEVEEFLKEAAVMKEIKHPNLVQLLGVCTREPPFYIITEFMTYGNLLDYLRECN"
 
     model = MultiModalityCausalLM.from_pretrained(ckpt, device_map=my_device, gradient_checkpointing=False, use_cache = True)
     model = model.to(torch.bfloat16).cuda().eval()
 
-    # test_one(input_seq, model, ckpt, target_name)
+    test_one(input_seq, model, ckpt, target_name)
 
-    cameo_dir = "/cto_studio/xtalpi_lab/liuzijing/temp/modeling/2024.10.05"
-    f_list = glob.glob(cameo_dir + '/*')
+    # cameo_dir = "/cto_studio/xtalpi_lab/liuzijing/temp/modeling/2024.10.05"
+    # f_list = glob.glob(cameo_dir + '/*')
 
-    for f1 in f_list:
-        target_name = f1.split("/")[-1]
-        fasta_file = f1 + "/target.fasta"
-        print(target_name)
-        with open(fasta_file, 'r') as f:
-            txt = f.read()
-            input_seq = txt.split('\n')[-1]
-        print(len(input_seq))
-        if len(input_seq) > 510:
-            continue
+    # for f1 in f_list:
+    #     target_name = f1.split("/")[-1]
+    #     fasta_file = f1 + "/target.fasta"
+    #     print(target_name)
+    #     with open(fasta_file, 'r') as f:
+    #         txt = f.read()
+    #         input_seq = txt.split('\n')[-1]
+    #     print(len(input_seq))
+    #     if len(input_seq) > 510:
+    #         continue
         
-        test_one(input_seq, model, ckpt, target_name)
+    #     test_one(input_seq, model, ckpt, target_name)

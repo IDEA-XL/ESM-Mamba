@@ -42,7 +42,7 @@ def train(ckpt=None):
     with open("model/progen/tokenizer.json", 'r') as f:
         progen_tokenizer = Tokenizer.from_str(f.read())
 
-    batch_size = 64
+    batch_size = 8   # A100 40G 2.7B bs 16, 786m bs 64
     gradient_accumulation = 1
 
     #### stage 1
@@ -52,6 +52,10 @@ def train(ckpt=None):
 
     ckpt_path = "/cto_studio/xtalpi_lab/liuzijing/weights/progen2-small" 
     config_json = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/model/config_small.json"
+
+    ckpt_path = "/cto_studio/xtalpi_lab/liuzijing/weights/progen2-large" 
+    config_json = "/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/model/config_large.json"
+
     model_config = MultiModalityConfig.from_json_file(config_json)
 
     model_config.torch_dtype = None

@@ -413,7 +413,7 @@ class StructureTokenDecoder(nn.Module):
             x, affine=None, affine_mask=None, sequence_id=sequence_id, chain_id=chain_id
         )
 
-        tensor7_affine, bb_pred = self.affine_output_projection(
+        tensor7_affine, bb_pred, angles = self.affine_output_projection(
             x, affine=None, affine_mask=torch.zeros_like(attention_mask)
         )
 
@@ -449,4 +449,5 @@ class StructureTokenDecoder(nn.Module):
             plddt=plddt_value,
             ptm=ptm,
             predicted_aligned_error=pae,
+            angles=angles,
         )

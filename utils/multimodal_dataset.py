@@ -197,6 +197,7 @@ class Seq40StructDataset(torch.utils.data.Dataset):
 class SeqDataset(torch.utils.data.Dataset):
     """
     Parameters:
+    sequence dataset with ESM tokenizer
         lmdb_path (`str`):
             Path to the sequence data.
 

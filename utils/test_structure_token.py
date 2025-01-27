@@ -22,14 +22,24 @@ from esm.utils.misc import slice_python_object_as_numpy
 from esm.utils import encoding
 from esm.utils import decoding
 
-# from esm.models.esm3 import ESM3
+from esm.models.esm3 import ESM3
+from esm.sdk.api import ESMProtein, SamplingConfig
 
-# model = ESM3.from_pretrained("esm3_sm_open_v1").to("cuda")
+model = ESM3.from_pretrained("esm3_sm_open_v1").to("cuda")
 
-# with torch.autocast(enabled=True, device_type=torch.device("cuda").type, dtype=torch.bfloat16): 
-#     xx_ids = torch.tensor([[1,2,3,4,5]], device="cuda")
-#     xx = model(structure_tokens=xx_ids)
-#     xx.shape
+f_name = "/cto_studio/xtalpi_lab/Datasets/af_swissprot/AF-Q92FR5-F1-model_v4.pdb.gz"
+with gzip.open(f_name, 'rt', encoding='utf-8') as f:
+    protein = ESMProtein.from_pdb(f, is_predicted=False)
+protein.sequence = None
+# protein = ESMProtein.from_pdb("/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/AF-Q92FR5-F1-model_v4.pdb", is_predicted=False)
+breakpoint()
+with torch.autocast(enabled=True, device_type=torch.device("cuda").type, dtype=torch.bfloat16):
+    protein_tensor = model.encode(protein)
+
+    output = model.forward_and_sample(
+        protein_tensor, SamplingConfig(return_per_residue_embeddings=True))
+    tosave = output.per_residue_embedding[1:-1,:].detach().cpu().numpy()
+
 
 ckpt_root = "/cto_studio/xtalpi_lab/liuzijing/weights/esm3-sm-open-v1/data/weights"
 
@@ -74,21 +84,21 @@ if __name__ == '__main__':
     #     with open(fasta_name, 'r') as f:
     #         texts = f.read()
 
-    qfasta = "MQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVL"
+    # qfasta = "MQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVL"
     # /cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/UP000002311.fasta
 
     # /cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/UP000002485.fasta
 
-    with open("/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/UP000002485_str.pkl", 'rb') as f:
+    with open("/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/af_swissprot_str.pkl", 'rb') as f:
         struct_data = pickle.load(f)
         
     struct_seq = list(struct_data.keys())
 
-    # seq = struct_seq[2]
-    # target_name = "O95405_894"
+    seq = struct_seq[4]
+    target_name = "Q92FR5_0"
 
-    seq = qfasta
-    target_name = "UP000002485"
+    # seq = qfasta
+    # target_name = "UP000002485"
 
     struct_token = torch.tensor(struct_data[seq], dtype=torch.int64, device=my_device)
 
@@ -104,17 +114,43 @@ if __name__ == '__main__':
         )
     
     chain = ProteinChain.from_atom37(
-        coordinates, sequence=seq)
+        coordinates, sequence=seq, confidence=plddt)
     
     chain.to_pdb(f"/home/liuzijing/workspace/{target_name}.pdb")
 
 
+# first res trans [  1.3696, -14.6521,  19.3721] 
+# rot tensor([[ 0.2052,  0.8345,  0.5114],
+#         [-0.0680, -0.5091,  0.8580],
+#         [ 0.9764, -0.2108, -0.0477]],
 
-        
+# t_atoms_to_global[0,0,0:3].trans
+# tensor([[  1.3696, -14.6521,  19.3721],
+#         [  1.3696, -14.6521,  19.3721],
+#         [  1.3696, -14.6521,  19.3721]], device='cuda:0',
+#        grad_fn=<SliceBackward0>)
+# (Pdb) t_atoms_to_global[0,0,0:3].rot._rots
+# tensor([[[ 0.2052,  0.8345,  0.5114],
+#          [-0.0680, -0.5091,  0.8580],
+#          [ 0.9764, -0.2108, -0.0477]],
 
-        
+#         [[ 0.2052,  0.8345,  0.5114],
+#          [-0.0680, -0.5091,  0.8580],
+#          [ 0.9764, -0.2108, -0.0477]],
 
+#         [[ 0.2052,  0.8345,  0.5114],
+#          [-0.0680, -0.5091,  0.8580],
+#          [ 0.9764, -0.2108, -0.0477]]], device='cuda:0',
+#        grad_fn=<SliceBackward0>)
 
+# t_atoms_to_global[0,0,2:3].rot.apply(lit_positions[0,0,2:3]) + t_atoms_to_global[0,0,2:3].trans
+# rigids[0,1, None].apply(all_bb_coords_local[0,1,2:3])
+
+# lit_positions[0,0,0:3] @ t_atoms_to_global[0,0,0:3].rot._rots.transpose(-1, -2).squeeze(-3) + t_atoms_to_global[0,0,0:3].trans
+
+# # p @ self._rots.transpose(-1, -2).squeeze(-3)
+
+# all_bb_coords_local[0,0] @ rigids[0,1, None].rot._rots.transpose(-1, -2).squeeze(-3) + rigids[0,1, None].trans
 
     # out_plddt = {}
     # out_str = {}
