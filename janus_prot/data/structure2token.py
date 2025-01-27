@@ -1,39 +1,30 @@
-### Process pdb files into fasta and ESM3 structure tokens
-
-from typing import Callable
+""" Process pdb files into fasta and ESM3 structure tokens """
 
 import torch
 import gzip
 import glob
 import sys
 import numpy as np
-# import torch.nn as nn
 from tqdm import tqdm
 import pickle
 
 from scipy.spatial.distance import pdist, squareform
 
-# from esm3.models.esm3 import ESM3
-# from esm3.models.function_decoder import FunctionTokenDecoder
 from esm.models.vqvae import (
     StructureTokenDecoder,
     StructureTokenEncoder,
 )
-from esm.tokenization import get_model_tokenizers
+from esm.utils import encoding
 from esm.tokenization import EsmSequenceTokenizer, StructureTokenizer
 from esm.utils.structure.protein_chain import ProteinChain
-from esm.utils.misc import slice_python_object_as_numpy
 
-from esm.utils import encoding
-from esm.utils import decoding
-
-ckpt_root = "/cto_studio/xtalpi_lab/liuzijing/weights/esm3-sm-open-v1/data/weights"
+ESM3_SM_CKPT = "/cto_studio/xtalpi_lab/liuzijing/weights/esm3-sm-open-v1/data/weights"
 
 def ESM3_structure_decoder_v0(device: torch.device | str = "cpu"):
     with torch.device(device):
         model = StructureTokenDecoder(d_model=1280, n_heads=20, n_layers=30).eval()
     state_dict = torch.load(
-        ckpt_root+"/esm3_structure_decoder_v0.pth", map_location=device
+        ESM3_SM_CKPT+"/esm3_structure_decoder_v0.pth", map_location=device
     )
     model.load_state_dict(state_dict)
     return model
@@ -45,7 +36,7 @@ def ESM3_structure_encoder_v0(device: torch.device | str = "cpu"):
             d_model=1024, n_heads=1, v_heads=128, n_layers=2, d_out=128, n_codes=4096
         ).eval()
     state_dict = torch.load(
-        ckpt_root+"/esm3_structure_encoder_v0.pth", map_location=device
+        ESM3_SM_CKPT+"/esm3_structure_encoder_v0.pth", map_location=device
     )
     model.load_state_dict(state_dict)
     return model

@@ -1,10 +1,6 @@
-import torch
+from torch.optim import lr_scheduler
 
-
-from torch.optim.lr_scheduler import _LRScheduler
-
-
-class Esm2LRScheduler(torch.optim.lr_scheduler._LRScheduler):
+class Esm2LRScheduler(lr_scheduler._LRScheduler):
     """
         This is an implementation of ESM2's learning rate scheduler.
     """

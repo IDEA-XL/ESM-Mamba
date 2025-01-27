@@ -1,43 +1,24 @@
-# test ESM3 structure token and ESM3 model
-from typing import Callable
+""" test ESM3 structure token and ESM3 model """
 
 import torch
-import gzip
 import glob
-import numpy as np
-# import torch.nn as nn
-from tqdm import tqdm
 import pickle
-# from esm3.models.esm3 import ESM3
-# from esm3.models.function_decoder import FunctionTokenDecoder
 from esm.models.vqvae import (
     StructureTokenDecoder,
     StructureTokenEncoder,
 )
-from esm.tokenization import get_model_tokenizers
 from esm.tokenization import EsmSequenceTokenizer, StructureTokenizer
 from esm.utils.structure.protein_chain import ProteinChain
-from esm.utils.misc import slice_python_object_as_numpy
-
-from esm.utils import encoding
 from esm.utils import decoding
 
-# from esm.models.esm3 import ESM3
 
-# model = ESM3.from_pretrained("esm3_sm_open_v1").to("cuda")
-
-# with torch.autocast(enabled=True, device_type=torch.device("cuda").type, dtype=torch.bfloat16): 
-#     xx_ids = torch.tensor([[1,2,3,4,5]], device="cuda")
-#     xx = model(structure_tokens=xx_ids)
-#     xx.shape
-
-ckpt_root = "/cto_studio/xtalpi_lab/liuzijing/weights/esm3-sm-open-v1/data/weights"
+ESM3_CKPT_ROOT = "/cto_studio/xtalpi_lab/liuzijing/weights/esm3-sm-open-v1/data/weights"
 
 def ESM3_structure_decoder_v0(device: torch.device | str = "cpu"):
     with torch.device(device):
         model = StructureTokenDecoder(d_model=1280, n_heads=20, n_layers=30).eval()
     state_dict = torch.load(
-        ckpt_root+"/esm3_structure_decoder_v0.pth", map_location=device
+        ESM3_CKPT_ROOT+"/esm3_structure_decoder_v0.pth", map_location=device
     )
     model.load_state_dict(state_dict)
     return model
@@ -49,7 +30,7 @@ def ESM3_structure_encoder_v0(device: torch.device | str = "cpu"):
             d_model=1024, n_heads=1, v_heads=128, n_layers=2, d_out=128, n_codes=4096
         ).eval()
     state_dict = torch.load(
-        ckpt_root+"/esm3_structure_encoder_v0.pth", map_location=device
+        ESM3_CKPT_ROOT+"/esm3_structure_encoder_v0.pth", map_location=device
     )
     model.load_state_dict(state_dict)
     return model
@@ -66,26 +47,13 @@ if __name__ == '__main__':
 
     fasta_all = '/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed'
 
-    # for f_name in tqdm(f_list):
-    #     pname = f_name.split("/")[-1].split('.')[0]
-    #     fasta_name = data_dir + f"/{pname[:-4]}.fasta"
-    #     str_name = f_name
-
-    #     with open(fasta_name, 'r') as f:
-    #         texts = f.read()
-
     qfasta = "MQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVL"
-    # /cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/UP000002311.fasta
 
-    # /cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/UP000002485.fasta
 
     with open("/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/UP000002485_str.pkl", 'rb') as f:
         struct_data = pickle.load(f)
         
     struct_seq = list(struct_data.keys())
-
-    # seq = struct_seq[2]
-    # target_name = "O95405_894"
 
     seq = qfasta
     target_name = "UP000002485"
@@ -107,12 +75,6 @@ if __name__ == '__main__':
         coordinates, sequence=seq)
     
     chain.to_pdb(f"/home/liuzijing/workspace/{target_name}.pdb")
-
-
-
-        
-
-        
 
 
 

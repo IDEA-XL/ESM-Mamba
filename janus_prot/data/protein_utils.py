@@ -1,23 +1,18 @@
 # process PDB mmcif_files to fasta and ESM3 structure tokens
 
 import torch
-import os
 import glob
 import pickle
 
 import numpy as np
 from tqdm import tqdm
-from typing import Mapping, Tuple
+from typing import Tuple
+from esm.utils import encoding
 from esm.utils.structure import mmcif_parsing
 from esm.utils.constants import residue_constants
 from esm.utils.structure.protein_chain import ProteinChain
-from esm.models.vqvae import (
-    StructureTokenDecoder,
-    StructureTokenEncoder,
-)
-from esm.tokenization import get_model_tokenizers
-from esm.tokenization import EsmSequenceTokenizer, StructureTokenizer
-from esm.utils import encoding
+from esm.tokenization import StructureTokenizer
+from esm.models.vqvae import StructureTokenEncoder
 
 class Error(Exception):
   """Base class for exceptions."""
@@ -153,7 +148,6 @@ if __name__ == '__main__':
 
     f_list = glob.glob(cif_folder + '/*.cif')
     for f_name in tqdm(f_list):
-      # f_name = '/cto_studio/xtalpi_lab/Datasets/alphafold-datasets/alphafold3/pdb_mmcif/mmcif_files/1kts.cif'
       pdb_code = f_name.split('/')[-1].split(".")[0]
       with open(f_name, 'r') as f:
           file_data = f.read()

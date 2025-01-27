@@ -1,40 +1,24 @@
 import torch
 import os
-import numpy as np
-
+import sys
 import glob
+
 from tokenizers import Tokenizer
 
-from model.progen.modeling_progen import ProGenForCausalLM
-from model.progen.configuration_progen import ProGenConfig
-
-from model.modeling_ss import MultiModalityCausalLM, MultiModalityConfig
-
-from transformers import LlamaForCausalLM
-
-import sys
-sys.path.append('./utils')
-
-from utils.esm.models.vqvae import (
-    StructureTokenDecoder,
-    StructureTokenEncoder,
-)
-from utils.esm.utils import encoding
-from utils.esm.tokenization import EsmSequenceTokenizer, StructureTokenizer
-from utils.esm.utils import decoding
-from utils.esm.utils.structure.protein_chain import ProteinChain
-
-_10TB = 10995116277760
-SEQ_OFFSET = 33
+from janus_prot.model.modeling_ss import MultiModalityCausalLM
+from esm.models.vqvae import StructureTokenDecoder
+from esm.tokenization import StructureTokenizer
+from esm.utils import decoding
+from esm.utils.structure.protein_chain import ProteinChain
 
 
-ckpt_root = "/cto_studio/xtalpi_lab/liuzijing/weights/esm3-sm-open-v1/data/weights"
+ESM3_CKPT_ROOT = "/cto_studio/xtalpi_lab/liuzijing/weights/esm3-sm-open-v1/data/weights"
 
 def ESM3_structure_decoder_v0(device: torch.device | str = "cpu"):
     with torch.device(device):
         model = StructureTokenDecoder(d_model=1280, n_heads=20, n_layers=30).eval()
     state_dict = torch.load(
-        ckpt_root+"/esm3_structure_decoder_v0.pth", map_location=device
+        ESM3_CKPT_ROOT+"/esm3_structure_decoder_v0.pth", map_location=device
     )
     model.load_state_dict(state_dict)
     return model

@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from attrdict import AttrDict
 from typing import Tuple, Union
-from einops import rearrange
 from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
@@ -98,7 +97,6 @@ class structure_head(torch.nn.Module):
 def model_name_to_cls(cls_name):
     if "MlpProjector" in cls_name:
         cls = MlpProjector
-
     elif "StructureTokenEncoder" in cls_name:
         from esm.models.vqvae import StructureTokenEncoder
         cls = StructureTokenEncoder
@@ -236,17 +234,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
     def __init__(self, config: MultiModalityConfig):
         super().__init__(config)
 
-        # structure_config = config.structure_config
-        # structure_cls = model_name_to_cls(structure_config.cls)
-        # self.structure_model = structure_cls(**structure_config.params)
-
-        # aligner_config = config.aligner_config
-        # aligner_cls = model_name_to_cls(aligner_config.cls)
-        # self.aligner = aligner_cls(aligner_config.params)
-
         gen_structure_config = config.gen_structure_config
-        # gen_structure_cls = model_name_to_cls(gen_structure_config.cls)
-        # self.gen_structure_model = gen_structure_cls()
 
         gen_aligner_config = config.gen_aligner_config
         gen_aligner_cls = model_name_to_cls(gen_aligner_config.cls)
@@ -281,12 +269,12 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         return_dict=None,
         structure_seq_mask=None
     ):
-        
+        compute_dtype = self.language_model.dtype
         structure_embeds = self.prepare_gen_img_embeds(input_ids).to(torch.float32)
         seq_ids = input_ids.clone().detach()
         seq_ids[structure_seq_mask] = 0
         inputs_embeds = self.language_model.transformer.wte(seq_ids)
-        inputs_embeds[structure_seq_mask] = structure_embeds[structure_seq_mask]
+        inputs_embeds[structure_seq_mask] = structure_embeds[structure_seq_mask].to(compute_dtype)
 
         transformer_outputs = self.language_model.transformer(
             past_key_values=past_key_values,
@@ -302,13 +290,10 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         )
         hidden_states = transformer_outputs.last_hidden_state # B L d
 
-        # lm_logits = self.language_model.lm_head(hidden_states).to(torch.float32) # B L 32
         structure_logits = self.gen_head(hidden_states).to(torch.float32) # B L 4096
         lm_logits = structure_logits
-        # lm_logits[structure_seq_mask] = structure_logits[structure_seq_mask]
 
         loss = None
-        # num_items_in_batch = structure_seq_mask.view(-1).sum()
         if labels is not None:
             # Shift so that tokens < n predict n
             shift_logits = lm_logits[..., :-1, :].contiguous()

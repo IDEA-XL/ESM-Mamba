@@ -1,31 +1,22 @@
+import sys
 import torch
-import numpy as np
 import pandas as pd
 from transformers import LlamaForCausalLM
 
-import sys
-sys.path.append('./utils')
-
-from utils.esm.models.vqvae import (
-    StructureTokenDecoder,
-    StructureTokenEncoder,
-)
-from utils.esm.utils import encoding
-from utils.esm.tokenization import EsmSequenceTokenizer, StructureTokenizer
-from utils.esm.utils import decoding
-from utils.esm.utils.structure.protein_chain import ProteinChain
-
-_10TB = 10995116277760
-SEQ_OFFSET = 33
+from esm.models.vqvae import StructureTokenDecoder
+from esm.utils import encoding, decoding
+from esm.tokenization import EsmSequenceTokenizer, StructureTokenizer
+from esm.utils.structure.protein_chain import ProteinChain
+from janus_prot.data.constants import SEQ_OFFSET
 
 my_device = "cuda"
-ckpt_root = "/cto_studio/xtalpi_lab/liuzijing/weights/esm3-sm-open-v1/data/weights"
+ESM3_CKPT_ROOT = "/cto_studio/xtalpi_lab/liuzijing/weights/esm3-sm-open-v1/data/weights"
 
 def ESM3_structure_decoder_v0(device: torch.device | str = "cpu"):
     with torch.device(device):
         model = StructureTokenDecoder(d_model=1280, n_heads=20, n_layers=30).eval()
     state_dict = torch.load(
-        ckpt_root+"/esm3_structure_decoder_v0.pth", map_location=device
+        ESM3_CKPT_ROOT+"/esm3_structure_decoder_v0.pth", map_location=device
     )
     model.load_state_dict(state_dict)
     return model
@@ -39,11 +30,15 @@ def test_one(input_seq, model, decoder, output_path):
 
     token_ids = token_ids[None, :].to(my_device) 
 
-    generate_ids = model.generate(token_ids, max_length=1024, do_sample=True, 
-                                top_k=0, top_p=0.95, temperature=0.8, num_return_sequences=5)
-    # generate_ids = model.generate(token_ids, max_length=1024, num_beams=8,
-    #                             num_return_sequences=5)
-    # breakpoint()
+    generate_ids = model.generate(
+        token_ids, 
+        max_length=1024, 
+        do_sample=True, 
+        top_k=0, 
+        top_p=0.95, 
+        temperature=0.8, 
+        num_return_sequences=5
+    )
 
     seq_len = len(input_seq)
     struct_token_1 = generate_ids[:, seq_len+2:2*seq_len+4] - SEQ_OFFSET
