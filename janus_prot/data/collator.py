@@ -56,3 +56,20 @@ def collate_fn_mm(batch):
     inputs["attention_mask"] = masks
     inputs["structure_seq_mask"] = structure_seq_masks
     return inputs
+
+def collate_fn_slm(batch):
+    inputs = {}
+    seqs, label_ids, structure_seq_masks = tuple(zip(*batch))
+
+    breakpoint()
+
+    label_ids = pad_sequences(label_ids, -100)
+    structure_seq_masks = pad_sequences(structure_seq_masks, False)
+    pad_token_id = EsmSequenceTokenizer().pad_token_id
+    
+    seqs, masks = pad_sequences(seqs, pad_token_id, return_mask=True)
+    inputs["input_ids"] = seqs
+    inputs["labels"] = label_ids
+    inputs["attention_mask"] = masks
+    inputs["structure_seq_mask"] = structure_seq_masks
+    return inputs
