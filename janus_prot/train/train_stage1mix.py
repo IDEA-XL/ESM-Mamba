@@ -14,7 +14,7 @@ local_rank = None
 class DataArguments:
     train_lmdb_path: str = field(default=f"/cto_studio/xtalpi_lab/temp/lmdb/train_dedup/data.lmdb")
     valid_lmdb_path: str = field(default=f"/cto_studio/xtalpi_lab/temp/lmdb/valid/data.lmdb")
-    struct2seq_path: str = field(default="/cto_studio/xtalpi_lab/temp/swiss_prot_esm3")
+    struct2seq_path: str = field(default="/raid/swiss_prot_esm3")
     train_struct_path: list[str] = field(default_factory=lambda: [
         "/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/",
         "/cto_studio/xtalpi_lab/Datasets/PDB_processed/"

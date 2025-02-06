@@ -60,10 +60,27 @@ def collate_fn_mm(batch):
 def collate_fn_slm(batch):
     inputs = {}
     seqs, label_ids, structure_seq_masks = tuple(zip(*batch))
-
-    breakpoint()
-
     label_ids = pad_sequences(label_ids, -100)
+
+    batch_size = len(batch)
+    struct2seq_id = torch.full([batch_size], False, dtype=torch.bool, device=label_ids[0].device)
+    struct_emb_mask = torch.full(label_ids.shape, False, dtype=torch.bool, device=label_ids.device)
+    struct_emb = None
+    for i in range(batch_size):
+        if len(batch[i]) == 3:
+            struct2seq_id[i] = False
+        elif len(batch[i]) == 5:
+            struct2seq_id[i] = True
+            struct_emb_mask[i, 0:batch[i][3].shape[0]] = batch[i][3]
+            if struct_emb is None:
+                struct_emb = batch[i][4]
+            else:
+                struct_emb = torch.cat((struct_emb, batch[i][4]))
+
+    inputs["struct_emb"] = struct_emb
+    inputs["struct_emb_mask"] = struct_emb_mask
+    inputs["struct2seq_id"] = struct2seq_id
+
     structure_seq_masks = pad_sequences(structure_seq_masks, False)
     pad_token_id = EsmSequenceTokenizer().pad_token_id
     

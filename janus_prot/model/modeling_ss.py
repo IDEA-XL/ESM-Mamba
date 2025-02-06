@@ -240,6 +240,10 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         gen_aligner_cls = model_name_to_cls(gen_aligner_config.cls)
         self.gen_aligner = gen_aligner_cls(gen_aligner_config.params)
 
+        aligner_config = config.aligner_config
+        aligner_cls = model_name_to_cls(aligner_config.cls)
+        self.aligner = aligner_cls(aligner_config.params)
+
         gen_head_config = config.gen_head_config
         gen_head_cls = model_name_to_cls(gen_head_config.cls)
         self.gen_head = gen_head_cls(gen_head_config.params)
@@ -267,14 +271,25 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         output_attentions=None,
         output_hidden_states=None,
         return_dict=None,
-        structure_seq_mask=None
+        structure_seq_mask=None,
+        struct_emb=None,
+        struct_emb_mask=None,
+        struct2seq_id=None
     ):
         compute_dtype = self.language_model.dtype
-        structure_embeds = self.prepare_gen_img_embeds(input_ids).to(torch.float32)
         seq_ids = input_ids.clone().detach()
-        seq_ids[structure_seq_mask] = 0
+        if (~struct2seq_id).sum() > 0:
+            structure_embeds = self.prepare_gen_img_embeds(input_ids).to(torch.float32)
+            seq_ids[structure_seq_mask] = 0
+
         inputs_embeds = self.language_model.transformer.wte(seq_ids)
-        inputs_embeds[structure_seq_mask] = structure_embeds[structure_seq_mask].to(compute_dtype)
+
+        if (~struct2seq_id).sum() > 0:
+            inputs_embeds[structure_seq_mask] = structure_embeds[structure_seq_mask].to(compute_dtype)
+
+        if struct_emb is not None:
+            struct_emb = self.aligner(struct_emb)
+            inputs_embeds[struct_emb_mask] = struct_emb
 
         transformer_outputs = self.language_model.transformer(
             past_key_values=past_key_values,
@@ -290,19 +305,27 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         )
         hidden_states = transformer_outputs.last_hidden_state # B L d
 
+        lm_logits = self.language_model.lm_head(hidden_states).to(torch.float32) # B L 32
         structure_logits = self.gen_head(hidden_states).to(torch.float32) # B L 4096
-        lm_logits = structure_logits
 
         loss = None
         if labels is not None:
             # Shift so that tokens < n predict n
-            shift_logits = lm_logits[..., :-1, :].contiguous()
             shift_labels = labels[..., 1:].contiguous()
-            # Flatten the tokens
             loss_fct = nn.CrossEntropyLoss()
-            loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
 
-            loss = loss.to(hidden_states.dtype)
+            lm_loss = 0.0
+            struct_loss = 0.0
+            if struct2seq_id.sum() > 0:
+                lm_logits = lm_logits[..., :-1, :].contiguous()[struct2seq_id]
+                lm_labels = shift_labels[struct2seq_id]
+                lm_loss = loss_fct(lm_logits.view(-1, lm_logits.size(-1)), lm_labels.view(-1))
+            if (~struct2seq_id).sum() > 0:
+                structure_logits = structure_logits[..., :-1, :].contiguous()[~struct2seq_id]
+                struct_labels = shift_labels[~struct2seq_id]
+                struct_loss = loss_fct(structure_logits.view(-1, structure_logits.size(-1)), struct_labels.view(-1))
+            
+            loss = (lm_loss + struct_loss).to(hidden_states.dtype)
 
         if not return_dict:
             output = (lm_logits,) + transformer_outputs[1:]

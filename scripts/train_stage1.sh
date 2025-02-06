@@ -1,15 +1,16 @@
 #!/bin/bash
-PROGEN_TYPE="small"
+PROGEN_TYPE="medium"
 PROGEN_DIR=/cto_studio/xtalpi_lab/liuzijing/weights/progen2-${PROGEN_TYPE}
 MODEL_CONFIG_JSON=./janus_prot/model/config_${PROGEN_TYPE}.json
 TOKENIZER_CONFIG_JSON=./janus_prot/model/progen/tokenizer.json
+OUT_DIR=/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2mix1
 
-deepspeed janus_prot/train/train_stage1.py \
+deepspeed janus_prot/train/train_stage1mix.py \
     --deepspeed scripts/zero2.json \
     --model_name_or_path ${PROGEN_DIR} \
     --tokenizer_path ${TOKENIZER_CONFIG_JSON} \
     --model_config_json ${MODEL_CONFIG_JSON} \
-    --output_dir ./results/progen2mm1 \
+    --output_dir ${OUT_DIR} \
     --per_device_train_batch_size 64 \
     --gradient_accumulation_steps 1 \
     --use_cache False \

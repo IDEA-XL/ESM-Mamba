@@ -392,13 +392,16 @@ class SeqStructMixDataset(torch.utils.data.Dataset):
                 struct_emb = torch.flip(struct_emb, dims=[0])
 
             token_ids = torch.tensor(self.sequence_tokenizer.encode(seq).ids, dtype=torch.long)
-            structure_seq_mask: torch.BoolTensor = token_ids == -100
-            structure_seq_mask[len(plddt)+3:-1] = True
-            
-            labels = torch.full((len(token_ids),), -100, dtype=torch.long)
-            labels[structure_seq_mask] = token_ids[structure_seq_mask]
 
-            return token_ids, labels, structure_seq_mask, struct_emb
+            struct_emb_mask: torch.BoolTensor = token_ids == -100
+            struct_emb_mask[1:len(plddt)+1] = True
+
+            structure_seq_mask = torch.full((len(token_ids),), False, dtype=torch.bool)
+
+            labels = torch.full((len(token_ids),), -100, dtype=torch.long)
+            labels[len(plddt)+3:-1] = token_ids[len(plddt)+3:-1]
+
+            return token_ids, labels, structure_seq_mask, struct_emb_mask, struct_emb
 
 
 class SeqStructureDataset(Dataset):

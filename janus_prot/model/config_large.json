@@ -4,7 +4,7 @@
     "model_type": "aligner",
     "params": {
       "depth": 2,
-      "input_dim": 2560,
+      "input_dim": 1536,
       "n_embed": 2560,
       "projector_type": "mlp_gelu"
     }
