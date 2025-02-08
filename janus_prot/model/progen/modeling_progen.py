@@ -27,6 +27,7 @@ from torch.nn import CrossEntropyLoss
 from transformers.activations import ACT2FN
 from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from transformers.modeling_utils import PreTrainedModel
+from transformers.generation import GenerationMixin
 from transformers.utils import logging
 from transformers.utils.model_parallel_utils import assert_device_map, get_device_map
 from .configuration_progen import ProGenConfig
@@ -546,7 +547,7 @@ class ProGenModel(ProGenPreTrainedModel):
         )
 
 
-class ProGenForCausalLM(ProGenPreTrainedModel):
+class ProGenForCausalLM(ProGenPreTrainedModel, GenerationMixin):
     _keys_to_ignore_on_load_missing = [r"h\.\d+\.attn\.masked_bias", r"h\.\d+\.attn\.bias", r"lm_head\.weight"]
 
     def __init__(self, config):
@@ -583,10 +584,12 @@ class ProGenForCausalLM(ProGenPreTrainedModel):
     def set_output_embeddings(self, new_embeddings):
         return
 
-    def prepare_inputs_for_generation(self, input_ids, past=None, **kwargs):
+    def prepare_inputs_for_generation(self, input_ids, past_key_values=None, 
+                                      inputs_embeds=None, use_cache=True,
+                                      **kwargs):
         token_type_ids = kwargs.get("token_type_ids", None)
         # only last token for inputs_ids if past is defined in kwargs
-        if past:
+        if past_key_values:
             input_ids = input_ids[:, -1].unsqueeze(-1)
             if token_type_ids is not None:
                 token_type_ids = token_type_ids[:, -1].unsqueeze(-1)
@@ -594,18 +597,27 @@ class ProGenForCausalLM(ProGenPreTrainedModel):
         attention_mask = kwargs.get("attention_mask", None)
         position_ids = kwargs.get("position_ids", None)
 
+        if inputs_embeds is not None and past_key_values is None:
+            input_ids = None
+        else:
+            # The clone here is for the same reason as for `position_ids`.
+            input_ids = input_ids.clone(memory_format=torch.contiguous_format)
+            inputs_embeds = None
+
         if attention_mask is not None and position_ids is None:
             # create position_ids on the fly for batch generation
             position_ids = attention_mask.long().cumsum(-1) - 1
             position_ids.masked_fill_(attention_mask == 0, 1)
-            if past:
+            if past_key_values:
                 position_ids = position_ids[:, -1].unsqueeze(-1)
         else:
             position_ids = None
+
         return {
             "input_ids": input_ids,
-            "past_key_values": past,
-            "use_cache": kwargs.get("use_cache"),
+            "inputs_embeds": inputs_embeds,
+            "past_key_values": past_key_values,
+            "use_cache": use_cache,
             "position_ids": position_ids,
             "attention_mask": attention_mask,
             "token_type_ids": token_type_ids,

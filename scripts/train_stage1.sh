@@ -5,7 +5,7 @@ MODEL_CONFIG_JSON=./janus_prot/model/config_${PROGEN_TYPE}.json
 TOKENIZER_CONFIG_JSON=./janus_prot/model/progen/tokenizer.json
 OUT_DIR=/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2mix1
 
-deepspeed janus_prot/train/train_stage1mix.py \
+python janus_prot/train/train_stage1mix.py \
     --deepspeed scripts/zero2.json \
     --model_name_or_path ${PROGEN_DIR} \
     --tokenizer_path ${TOKENIZER_CONFIG_JSON} \
@@ -18,7 +18,7 @@ deepspeed janus_prot/train/train_stage1mix.py \
     --warmup_steps 500 \
     --num_train_epochs 70 \
     --optim "adamw_torch" \
-    --dataloader_num_workers 0 \
+    --dataloader_num_workers 2 \
     --learning_rate 1e-3 \
     --lr_scheduler_type constant_with_warmup \
     --logging_steps 1000 \

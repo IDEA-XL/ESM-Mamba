@@ -1,3 +1,4 @@
+# Test generation of structure given sequences
 import torch
 import os
 import sys
@@ -32,7 +33,7 @@ def test_one(input_seq, model, ckpt_path,
     
     structure_tokenizer = StructureTokenizer()
 
-    with open("model/progen/tokenizer.json", 'r') as f:
+    with open("janus_prot/model/progen/tokenizer.json", 'r') as f:
         progen_tokenizer = Tokenizer.from_str(f.read())
 
     len_seq = len(input_seq)
@@ -129,10 +130,12 @@ if __name__ == "__main__":
 
     cameo_dir = "/cto_studio/xtalpi_lab/liuzijing/temp/modeling/2024.10.05"
     f_list = glob.glob(cameo_dir + '/*')
+    plddts = {}
 
     for f1 in f_list:
         target_name = f1.split("/")[-1]
         fasta_file = f1 + "/target.fasta"
+        target_pdb = f1 + "/target.pdb"
         print(target_name)
         with open(fasta_file, 'r') as f:
             txt = f.read()
@@ -142,3 +145,17 @@ if __name__ == "__main__":
             continue
         
         test_one(input_seq, model, ckpt, target_name)
+        lddts = []
+        for i in range(4):
+            pred_pdb = f"{ckpt}/predictions/pre_{target_name}{i}.pdb"
+            result = os.popen(f"lddt -c {pred_pdb} {target_pdb}")
+            res = result.read()
+            for line in res.splitlines():
+                if line.startswith("Global LDDT score"):
+                    lddts.append(float(line.split(":")[-1].strip()))
+        plddts[target_name] = max(lddts)
+    for k, v in plddts.items():
+        print(k,v)
+
+
+    
