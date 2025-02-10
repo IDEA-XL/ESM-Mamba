@@ -1,6 +1,8 @@
 import torch
 import numpy as np
-from esm.tokenization import EsmSequenceTokenizer
+# from esm.tokenization import EsmSequenceTokenizer
+
+progen_pad_token_id = 0
 
 def pad_sequences(sequences, constant_value=0, dtype=None, return_mask=False) -> np.ndarray:
     batch_size = len(sequences)
@@ -33,7 +35,7 @@ def collate_fn_gpt(batch):
     seqs, label_ids = tuple(zip(*batch))
 
     label_ids = pad_sequences(label_ids, -100)
-    pad_token_id = EsmSequenceTokenizer().pad_token_id
+    pad_token_id = progen_pad_token_id
     
     seqs, masks = pad_sequences(seqs, pad_token_id, return_mask=True)
     inputs["input_ids"] = seqs
@@ -48,7 +50,7 @@ def collate_fn_mm(batch):
 
     label_ids = pad_sequences(label_ids, -100)
     structure_seq_masks = pad_sequences(structure_seq_masks, False)
-    pad_token_id = EsmSequenceTokenizer().pad_token_id
+    pad_token_id = progen_pad_token_id
     
     seqs, masks = pad_sequences(seqs, pad_token_id, return_mask=True)
     inputs["input_ids"] = seqs
@@ -82,7 +84,7 @@ def collate_fn_slm(batch):
     inputs["struct2seq_id"] = struct2seq_id
 
     structure_seq_masks = pad_sequences(structure_seq_masks, False)
-    pad_token_id = EsmSequenceTokenizer().pad_token_id
+    pad_token_id = progen_pad_token_id
     
     seqs, masks = pad_sequences(seqs, pad_token_id, return_mask=True)
     inputs["input_ids"] = seqs

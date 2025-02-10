@@ -288,7 +288,6 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
             inputs_embeds[structure_seq_mask] = structure_embeds[structure_seq_mask].to(compute_dtype)
 
         if struct_emb is not None:
-            breakpoint()
             struct_emb = self.aligner(struct_emb)
             inputs_embeds[struct_emb_mask] = struct_emb
 
