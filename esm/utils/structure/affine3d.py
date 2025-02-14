@@ -227,6 +227,14 @@ class Affine3D:
             torch.stack([func(x) for x in self.tensor.unbind(dim=-1)], dim=-1)
         )
 
+    def unsqueeze(self, dim) -> "Affine3D":
+        return self.tensor_apply(lambda x: torch.unsqueeze(x, dim=dim))
+    
+    def mul(self, mat_) -> "Affine3D":
+        new_rot = RotationMatrix(self.rot.to_3x3() * mat_[..., None, None])
+        new_trans = self.trans * mat_[..., None]
+        return Affine3D(trans=new_trans, rot=new_rot)
+
     def as_matrix(self):
         return Affine3D(trans=self.trans, rot=self.rot.as_matrix())
 

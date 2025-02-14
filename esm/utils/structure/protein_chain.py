@@ -694,7 +694,7 @@ class ProteinChain:
         return self.apply_frame(self.get_normalization_frame())
 
     def infer_oxygen(self) -> ProteinChain:
-        """Oxygen position is fixed given N, CA, C atoms. Infer it if not provided."""
+        """Oxygen position is fixed given N(res L+1), CA(res L), C(res L) atoms. Infer it if not provided."""
         O_vector = torch.tensor([0.6240, -1.0613, 0.0103], dtype=torch.float32)
         N, CA, C = torch.from_numpy(self.atoms[["N", "CA", "C"]]).float().unbind(dim=1)
         N = torch.roll(N, -3)

@@ -11,6 +11,8 @@ from esm.tokenization import EsmSequenceTokenizer, StructureTokenizer
 from esm.utils.structure.protein_chain import ProteinChain
 from esm.utils import decoding
 
+from esm.models.esm3 import ESM3
+from esm.sdk.api import ESMProtein, ESMProteinTensor, ESM3InferenceClient
 
 ESM3_CKPT_ROOT = "/cto_studio/xtalpi_lab/liuzijing/weights/esm3-sm-open-v1/data/weights"
 
@@ -47,16 +49,16 @@ if __name__ == '__main__':
 
     fasta_all = '/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed'
 
-    qfasta = "MQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVL"
+    # qfasta = "MQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGMQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVL"
 
 
-    with open("/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/UP000002485_str.pkl", 'rb') as f:
+    with open("/cto_studio/xtalpi_lab/Datasets/AF2_ebi_processed/af_swissprot_str.pkl", 'rb') as f:
         struct_data = pickle.load(f)
         
     struct_seq = list(struct_data.keys())
 
-    seq = qfasta
-    target_name = "UP000002485"
+    seq = struct_seq[3]
+    target_name = "O95405_1331" #"Q92FR5_0" #
 
     struct_token = torch.tensor(struct_data[seq], dtype=torch.int64, device=my_device)
 
@@ -64,7 +66,23 @@ if __name__ == '__main__':
     struct_token[0] = structure_tokenizer.bos_token_id
     struct_token[-1] = structure_tokenizer.eos_token_id
 
-    coordinates, plddt, ptm = decoding.decode_structure(
+    seq_tokens = sequence_tokenizer.encode(seq)
+
+    # model = ESM3.from_pretrained("esm3_sm_open_v1").to("cuda")
+    # with torch.autocast(enabled=True, device_type=torch.device("cuda").type, dtype=torch.float32):
+    #     protein = ESMProteinTensor(structure=struct_token,sequence=torch.tensor(seq_tokens, device="cuda"))
+    #     xx = model.decode(protein)
+
+    import esm
+    model: ESM3InferenceClient = esm.sdk.client("esm3-small-2024-08", token="403hh9xzeBqpJn7ZXUtRGD")
+    protein = ESMProteinTensor(structure=struct_token, sequence=torch.tensor(seq_tokens, device=my_device))
+    xx = model.decode(protein)
+
+    breakpoint()
+
+    xx.to_pdb(f"/home/liuzijing/workspace/{target_name}v0.pdb")
+
+    coordinates, plddt, ptm = decoding.decode_structure_sidechain(
             structure_tokens=struct_token,
             structure_decoder=ESM3_structure_decoder_v0(my_device),
             structure_tokenizer=structure_tokenizer,
@@ -72,9 +90,9 @@ if __name__ == '__main__':
         )
     
     chain = ProteinChain.from_atom37(
-        coordinates, sequence=seq)
+        coordinates, sequence=seq, confidence=plddt)
     
-    chain.to_pdb(f"/home/liuzijing/workspace/{target_name}.pdb")
+    chain.to_pdb(f"/home/liuzijing/workspace/{target_name}v0.pdb")
 
 
 

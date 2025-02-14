@@ -49,6 +49,16 @@ class Dim6RotStructureHead(nn.Module):
         x = self.activation_fn(x)
         x = self.norm(x)
         trans, x, y, angles = self.proj(x).split([3, 3, 3, 7 * 2], dim=-1)
+
+        angles = angles.view(angles.shape[:-1] + (-1, 2)) ###
+        norm_denom = torch.sqrt(
+            torch.clamp(
+                torch.sum(angles ** 2, dim=-1, keepdim=True),
+                min=1e-8,
+            )
+        )
+        angles = angles / norm_denom
+
         trans = trans * self.trans_scale_factor
         x = x / (x.norm(dim=-1, keepdim=True) + 1e-5)
         y = y / (y.norm(dim=-1, keepdim=True) + 1e-5)
@@ -65,4 +75,4 @@ class Dim6RotStructureHead(nn.Module):
         )
         pred_xyz = rigids[..., None].apply(all_bb_coords_local)
 
-        return affine, pred_xyz
+        return affine, pred_xyz, angles
