@@ -3,12 +3,13 @@ import torch
 import os
 import sys
 import glob
-
+import pickle
+import numpy as np
 from tokenizers import Tokenizer
 
 from janus_prot.model.modeling_ss import MultiModalityCausalLM
 from esm.models.vqvae import StructureTokenDecoder
-from esm.tokenization import StructureTokenizer
+from esm.tokenization import EsmSequenceTokenizer,StructureTokenizer
 from esm.utils import decoding
 from esm.utils.structure.protein_chain import ProteinChain
 
@@ -24,6 +25,9 @@ def ESM3_structure_decoder_v0(device: torch.device | str = "cpu"):
     model.load_state_dict(state_dict)
     return model
 
+
+esm_tokenizer = EsmSequenceTokenizer()
+
 @torch.inference_mode()
 def test_one(input_seq, model, ckpt_path,
              target_name: str = "",
@@ -32,7 +36,12 @@ def test_one(input_seq, model, ckpt_path,
              do_sample: bool = True):
     
     structure_tokenizer = StructureTokenizer()
-
+    seq_tokens = esm_tokenizer.encode(input_seq)
+    output = {}
+    output["target_name"] = target_name
+    output["seq_token"] = seq_tokens
+    output["struct_token"] = []
+    
     with open("janus_prot/model/progen/tokenizer.json", 'r') as f:
         progen_tokenizer = Tokenizer.from_str(f.read())
 
@@ -85,6 +94,9 @@ def test_one(input_seq, model, ckpt_path,
     struct_token[:,0] = structure_tokenizer.bos_token_id
     struct_token[:,-1] = structure_tokenizer.eos_token_id
 
+    for i in range(parallel_size):
+        output["struct_token"].append(struct_token[i].cpu().numpy().tolist())
+
     if not os.path.exists(f"{ckpt_path}/predictions"):
         os.mkdir(f"{ckpt_path}/predictions")
 
@@ -101,6 +113,8 @@ def test_one(input_seq, model, ckpt_path,
 
         chain.to_pdb(f"{ckpt_path}/predictions/pre_{target_name}{i}.pdb")
 
+    return output
+
 
 if __name__ == "__main__":
     ckpt = sys.argv[1]
@@ -115,12 +129,12 @@ if __name__ == "__main__":
     # target_name = "O95405_1331"
 
     #
-    # input_seq = "AMNLIPEDGLPPILISTGVKGDYAVEEKPSQISVMQQLEDGGPDPLVFVLNANLLSMVKIVNYVNRKCWCFTTKGMHAVGQSEIVILLQCLPDEKCLPKDIFNHFVQLYRDALAGNVVSNLGHSFFSQSFLGSKEHGGFLYVTSTYQSLQDLVLPTPPYLFGILIQKWETPWAKVFPIRLMLRLGAEYRLYPCPLFSVRFRKPLFGETGHTIMNLLADFRNYQYTLPVVQGLVVDMEVRKTSIKIPSNRYNEMMKAMNKSNEHVLAGGACFNEKADSHLVCVQNDDGNYQTQAISIHNQPRKVTGASFFVFSGALKSSSGYLAKSSIVEDGVMVQITAENMDSLRQALREMKDFTITCGKADAEEPQEHIHIQWVDDDKNVSKGVVSPIDGKSMETITNVKIFHGSEYKANGKVIRWTEVFF"
-    # target_name = "O95405_894"
+    input_seq = "AMNLIPEDGLPPILISTGVKGDYAVEEKPSQISVMQQLEDGGPDPLVFVLNANLLSMVKIVNYVNRKCWCFTTKGMHAVGQSEIVILLQCLPDEKCLPKDIFNHFVQLYRDALAGNVVSNLGHSFFSQSFLGSKEHGGFLYVTSTYQSLQDLVLPTPPYLFGILIQKWETPWAKVFPIRLMLRLGAEYRLYPCPLFSVRFRKPLFGETGHTIMNLLADFRNYQYTLPVVQGLVVDMEVRKTSIKIPSNRYNEMMKAMNKSNEHVLAGGACFNEKADSHLVCVQNDDGNYQTQAISIHNQPRKVTGASFFVFSGALKSSSGYLAKSSIVEDGVMVQITAENMDSLRQALREMKDFTITCGKADAEEPQEHIHIQWVDDDKNVSKGVVSPIDGKSMETITNVKIFHGSEYKANGKVIRWTEVFF"
+    target_name = "O95405_894"
 
     # 2hz4
-    input_seq = "VSPNYDKWEMERTDITMKHKLGGGQYGEVYEGVWKKYSLTVAVKTLKEDTMEVEEFLKEAAVMKEIKHPNLVQLLGVCTREPPFYIITEFMTYGNLLDYLRECNRQEVNAVVLLYMATQISSAMEYLEKKNFIHRDLAARNCLVGENHLVKVADFGLSRLMTGDTYTAHAGAKFPIKWTAPESLAYNKFSIKSDVWAFGVLLWEIATYGMSPYPGIDLSQVYELLEKDYRMERPEGCPEKVYELMRACWQWNPSDRPSFAEIHQAFETMFQES"
-    target_name = "2hz4"
+    # input_seq = "VSPNYDKWEMERTDITMKHKLGGGQYGEVYEGVWKKYSLTVAVKTLKEDTMEVEEFLKEAAVMKEIKHPNLVQLLGVCTREPPFYIITEFMTYGNLLDYLRECNRQEVNAVVLLYMATQISSAMEYLEKKNFIHRDLAARNCLVGENHLVKVADFGLSRLMTGDTYTAHAGAKFPIKWTAPESLAYNKFSIKSDVWAFGVLLWEIATYGMSPYPGIDLSQVYELLEKDYRMERPEGCPEKVYELMRACWQWNPSDRPSFAEIHQAFETMFQES"
+    # target_name = "2hz4"
     # input_seq = "VSPNYDKWEMERTDITMKHKLGGGQYGEVYEGVWKKYSLTVAVKTLKEDTMEVEEFLKEAAVMKEIKHPNLVQLLGVCTREPPFYIITEFMTYGNLLDYLRECN"
 
     model = MultiModalityCausalLM.from_pretrained(ckpt, device_map=my_device, gradient_checkpointing=False, use_cache = True)
@@ -128,25 +142,36 @@ if __name__ == "__main__":
 
     # test_one(input_seq, model, ckpt, target_name)
 
-    cameo_dir = "/cto_studio/xtalpi_lab/liuzijing/temp/modeling/2024.10.05"
+    # cameo_dir = "/cto_studio/xtalpi_lab/liuzijing/temp/modeling/2024.10.05"
+    cameo_dir = "/cto_studio/xtalpi_lab/liuzijing/temp/CASP15/CASP15_label"
     f_list = glob.glob(cameo_dir + '/*')
     plddts = {}
+    avg_plddts = {}
+    parallel_size = 4
+    save_output = {}
 
     for f1 in f_list:
-        target_name = f1.split("/")[-1]
-        fasta_file = f1 + "/target.fasta"
-        target_pdb = f1 + "/target.pdb"
+        # target_name = f1.split("/")[-1]
+        # fasta_file = f1 + "/target.fasta"
+        # target_pdb = f1 + "/target.pdb"
+        # with open(fasta_file, 'r') as f:
+        #     txt = f.read()
+        #     input_seq = txt.split('\n')[-1]
+        
+        target_pdb = f1
+        target_name = f1.split("/")[-1].split(".")[0]
+        target_pdb = f"/cto_studio/xtalpi_lab/liuzijing/temp/CASP15/ESMFold/cycle4/{target_name}_ESMfold.pdb"
+        protein_chain = ProteinChain.from_pdb(target_pdb)
+        input_seq = protein_chain.sequence
+
         print(target_name)
-        with open(fasta_file, 'r') as f:
-            txt = f.read()
-            input_seq = txt.split('\n')[-1]
         print(len(input_seq))
         if len(input_seq) > 510:
             continue
         
-        test_one(input_seq, model, ckpt, target_name)
+        save_output[target_name] = test_one(input_seq, model, ckpt, target_name, parallel_size=parallel_size)
         lddts = []
-        for i in range(4):
+        for i in range(parallel_size):
             pred_pdb = f"{ckpt}/predictions/pre_{target_name}{i}.pdb"
             result = os.popen(f"lddt -c {pred_pdb} {target_pdb}")
             res = result.read()
@@ -154,7 +179,15 @@ if __name__ == "__main__":
                 if line.startswith("Global LDDT score"):
                     lddts.append(float(line.split(":")[-1].strip()))
         plddts[target_name] = max(lddts)
+        avg_plddts[target_name] = np.array(lddts).mean()
+    
+    with open(f"{ckpt}/predictions/tokens.pkl", 'wb') as f:
+        pickle.dump(save_output, f)
+
     for k, v in plddts.items():
+        print(k,v)
+
+    for k, v in avg_plddts.items():
         print(k,v)
 
 

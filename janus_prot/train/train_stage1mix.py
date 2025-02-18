@@ -9,17 +9,17 @@ from janus_prot.model.modeling_ss import MultiModalityCausalLM, MultiModalityCon
 from janus_prot.data import collate_fn_slm, SeqStructureDataset, SeqStructMixDataset
 
 local_rank = None
-
+data_dir = "/cto_studio/xtalpi_lab/Datasets" # "/cto_labs/liuzijing/datasets/" # 
 @dataclass
 class DataArguments:
-    train_lmdb_path: str = field(default=f"/cto_labs/liuzijing/datasets/lmdb/train_dedup/data.lmdb")
-    valid_lmdb_path: str = field(default=f"/cto_labs/liuzijing/datasets/lmdb/valid/data.lmdb")
-    struct2seq_path: str = field(default="/data/swiss_prot_esm3")
+    train_lmdb_path: str = field(default=f"{data_dir}/lmdb/train_dedup/data.lmdb")
+    valid_lmdb_path: str = field(default=f"{data_dir}/lmdb/valid/data.lmdb")
+    struct2seq_path: str = field(default="/cto_studio/xtalpi_lab/temp/swiss_prot_esm3")
     train_struct_path: list[str] = field(default_factory=lambda: [
-        "/cto_labs/liuzijing/datasets/AF2_ebi_processed/",
-        "/cto_labs/liuzijing/datasets/PDB_processed/"
+        f"{data_dir}/AF2_ebi_processed/",
+        f"{data_dir}/PDB_processed/"
     ])
-    valid_struct_path: str = field(default="/cto_labs/liuzijing/datasets/AF2_ebi_processed/UP000325664_str.pkl")
+    valid_struct_path: str = field(default=f"{data_dir}/AF2_ebi_processed/UP000325664_str.pkl")
 
 
 @dataclass
