@@ -1,11 +1,11 @@
 #!/bin/bash
-PROGEN_TYPE="small"
+PROGEN_TYPE="medium"
 PROGEN_DIR=/cto_studio/xtalpi_lab/liuzijing/weights/progen2-${PROGEN_TYPE}
 MODEL_CONFIG_JSON=./janus_prot/model/config_${PROGEN_TYPE}.json
 TOKENIZER_CONFIG_JSON=./janus_prot/model/progen/tokenizer.json
-OUT_DIR=/cto_studio/xtalpi_lab/liuzijing/outputs/progen2largemix1
+OUT_DIR=/cto_studio/xtalpi_lab/liuzijing/outputs/progen2design1
 
-python janus_prot/train/train_stage1mix.py \
+deepspeed janus_prot/train/train_stage1mix.py \
     --deepspeed scripts/zero2.json \
     --model_name_or_path ${PROGEN_DIR} \
     --tokenizer_path ${TOKENIZER_CONFIG_JSON} \
@@ -16,7 +16,7 @@ python janus_prot/train/train_stage1mix.py \
     --use_cache False \
     --gradient_checkpointing True \
     --warmup_steps 500 \
-    --num_train_epochs 70 \
+    --num_train_epochs 80 \
     --optim "adamw_torch" \
     --dataloader_num_workers 2 \
     --learning_rate 1e-3 \

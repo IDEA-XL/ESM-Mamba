@@ -78,6 +78,8 @@ def collate_fn_slm(batch):
                 struct_emb = batch[i][4]
             else:
                 struct_emb = torch.cat((struct_emb, batch[i][4]))
+        elif len(batch[i]) == 4:
+            struct2seq_id[i] = True
 
     inputs["struct_emb"] = struct_emb
     inputs["struct_emb_mask"] = struct_emb_mask

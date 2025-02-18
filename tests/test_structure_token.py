@@ -57,32 +57,31 @@ if __name__ == '__main__':
         
     struct_seq = list(struct_data.keys())
 
-    seq = struct_seq[3]
-    target_name = "O95405_1331" #"Q92FR5_0" #
+    seq = struct_seq[4]
+    target_name = "Q92FR5_0" #"O95405_1331" #
 
-    struct_token = torch.tensor(struct_data[seq], dtype=torch.int64, device=my_device)
+    vq_seq = struct_data[seq][::-1].copy()
+    seq = seq[::-1]
+    struct_token = torch.tensor(vq_seq, dtype=torch.int64, device=my_device)
 
     struct_token = torch.cat((struct_token[0:1], struct_token, struct_token[-1:]), dim=0)
     struct_token[0] = structure_tokenizer.bos_token_id
     struct_token[-1] = structure_tokenizer.eos_token_id
 
-    seq_tokens = sequence_tokenizer.encode(seq)
-
+    # seq_tokens = sequence_tokenizer.encode(seq)
     # model = ESM3.from_pretrained("esm3_sm_open_v1").to("cuda")
     # with torch.autocast(enabled=True, device_type=torch.device("cuda").type, dtype=torch.float32):
     #     protein = ESMProteinTensor(structure=struct_token,sequence=torch.tensor(seq_tokens, device="cuda"))
     #     xx = model.decode(protein)
 
-    import esm
-    model: ESM3InferenceClient = esm.sdk.client("esm3-small-2024-08", token="403hh9xzeBqpJn7ZXUtRGD")
-    protein = ESMProteinTensor(structure=struct_token, sequence=torch.tensor(seq_tokens, device=my_device))
-    xx = model.decode(protein)
+    # import esm
+    # model: ESM3InferenceClient = esm.sdk.client("esm3-small-2024-08", token="403hh9xzeBqpJn7ZXUtRGD")
+    # protein = ESMProteinTensor(structure=struct_token, sequence=torch.tensor(seq_tokens, device=my_device))
+    # xx = model.decode(protein)
+    # breakpoint()
+    # xx.to_pdb(f"/home/liuzijing/workspace/{target_name}v0.pdb")
 
-    breakpoint()
-
-    xx.to_pdb(f"/home/liuzijing/workspace/{target_name}v0.pdb")
-
-    coordinates, plddt, ptm = decoding.decode_structure_sidechain(
+    coordinates, plddt, ptm = decoding.decode_structure(
             structure_tokens=struct_token,
             structure_decoder=ESM3_structure_decoder_v0(my_device),
             structure_tokenizer=structure_tokenizer,
@@ -91,8 +90,8 @@ if __name__ == '__main__':
     
     chain = ProteinChain.from_atom37(
         coordinates, sequence=seq, confidence=plddt)
-    
-    chain.to_pdb(f"/home/liuzijing/workspace/{target_name}v0.pdb")
+
+    chain.to_pdb(f"/home/liuzijing/workspace/{target_name}re.pdb")
 
 
 

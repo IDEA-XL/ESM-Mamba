@@ -108,21 +108,6 @@ def model_name_to_cls(cls_name):
     return cls
 
 
-class StructureConfig(PretrainedConfig):
-    model_type = "structure"
-    cls: str = ""
-    params: AttrDict = {}
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-        self.cls = kwargs.get("cls", "")
-        if not isinstance(self.cls, str):
-            self.cls = self.cls.__name__
-
-        self.params = AttrDict(kwargs.get("params", {}))
-
-
 class AlignerConfig(PretrainedConfig):
     model_type = "aligner"
     cls: str = ""
@@ -185,7 +170,6 @@ class GenHeadConfig(PretrainedConfig):
 
 class MultiModalityConfig(PretrainedConfig):
     model_type = "multi_modality"
-    structure_config: StructureConfig
     aligner_config: AlignerConfig
 
     gen_structure_config: GenStructureConfig
@@ -196,8 +180,6 @@ class MultiModalityConfig(PretrainedConfig):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        structure_config = kwargs.get("structure_config", {})
-        self.structure_config = StructureConfig(**structure_config)
 
         aligner_config = kwargs.get("aligner_config", {})
         self.aligner_config = AlignerConfig(**aligner_config)
@@ -277,6 +259,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         struct2seq_id=None
     ):
         compute_dtype = self.language_model.dtype
+        breakpoint()
         seq_ids = input_ids.clone().detach()
         if (~struct2seq_id).sum() > 0:
             structure_embeds = self.prepare_gen_img_embeds(input_ids).to(torch.float32)
@@ -340,7 +323,6 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         )
 
 
-AutoConfig.register("structure", StructureConfig)
 AutoConfig.register("aligner", AlignerConfig)
 AutoConfig.register("gen_structure", GenStructureConfig)
 AutoConfig.register("gen_aligner", GenAlignerConfig)

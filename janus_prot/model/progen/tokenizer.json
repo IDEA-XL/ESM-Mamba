@@ -29,6 +29,24 @@
       "lstrip": false,
       "rstrip": false,
       "normalized": false
+    },
+    {
+      "id": 4096,
+      "special": true,
+      "content": "<|s_bos|>",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false
+    },
+    {
+      "id": 4097,
+      "special": true,
+      "content": "<|s_eos|>",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false
     }
   ],
   "normalizer": null,
@@ -86,7 +104,9 @@
       "Y": 28,
       "Z": 29,
       "3": 30,
-      "4": 31
+      "4": 31,
+      "<|s_bos|>": 4096,
+      "<|s_eos|>": 4097
     },
     "merges": []
   }

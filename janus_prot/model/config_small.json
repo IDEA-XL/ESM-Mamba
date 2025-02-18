@@ -14,7 +14,7 @@
       "model_type": "gen_aligner",
       "params": {
         "depth": 2,
-        "input_dim": 8,
+        "input_dim": 1024,
         "n_embed": 1024,
         "projector_type": "mlp_gelu"
       }
@@ -24,7 +24,7 @@
       "model_type": "gen_head",
       "params": {
         "structure_token_embed": 1024,
-        "structure_token_size": 4096,
+        "structure_token_size": 4100,
         "n_embed": 1024
       }
     },
@@ -32,8 +32,8 @@
       "cls": "StructureTokenEncoder",
       "model_type": "gen_structure",
       "params": {
-        "structure_token_size": 4096,
-        "n_embed": 8
+        "structure_token_size": 4100,
+        "n_embed": 1024
       }
     },
     "language_config": {
