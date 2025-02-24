@@ -334,6 +334,8 @@ class SeqStructMixDataset(torch.utils.data.Dataset):
         prob = random.random()
         if prob < self.seq_ratio: # seq_ratio prob. seq to struct
             data_idx = random.randint(0,1)
+            if prob > 0.4: # 10% de novo structure, use AF_EBI dataset
+                data_idx = 0
             data_key = self.data_names[data_idx]
 
             cluster_idx = random.randint(0, self.len_struct[data_key] - 1)
@@ -363,22 +365,25 @@ class SeqStructMixDataset(torch.utils.data.Dataset):
                     struct_seq = torch.flip(struct_seq, dims=[0])
                 else:
                     seq = "1" + seq + "2" + "<|s_bos|>" + seq + "<|s_eos|>"
-            else:
+            else:  # 10% de novo structure
                 seq = "<|s_bos|>" + seq + "<|s_eos|>"
 
             token_ids = torch.tensor(self.sequence_tokenizer.encode(seq).ids, dtype=torch.long)
             structure_seq_mask: torch.BoolTensor = token_ids == -100
             structure_seq_mask[-(len(struct_seq)+1):-1] = True
 
-            struct_seq[struct_seq == -100] = self.struct_inf_token_id
             token_ids[structure_seq_mask] = struct_seq 
             labels = torch.full((len(token_ids),), -100, dtype=torch.long)
             structure_seq_mask[-1] = True
             labels[structure_seq_mask] = token_ids[structure_seq_mask]
+            structure_seq_mask[-1] = False
+            struct_seq[struct_seq == -100] = self.struct_inf_token_id
+            token_ids[structure_seq_mask] = struct_seq
+            structure_seq_mask[-1] = True
             structure_seq_mask[-(len(struct_seq)+2)] = True
 
             return token_ids, labels, structure_seq_mask 
-        elif prob < 0.9:  # struct to sequence
+        elif prob < 0.75:  # 25% struct to sequence
             index = random.randint(0, self.len_emb-1)
             key = self.name_list[index]
             k = self.name_to_batch[key]
@@ -408,7 +413,7 @@ class SeqStructMixDataset(torch.utils.data.Dataset):
 
             return token_ids, labels, structure_seq_mask, struct_emb_mask, struct_emb
         
-        else: # pure sequence
+        else: # 25% pure sequence
             index = random.randint(0, self.len_seq-1)
             index = f"{index:09d}"
             entry = json.loads(self._get(index))

@@ -5,7 +5,7 @@ MODEL_CONFIG_JSON=./janus_prot/model/config_${PROGEN_TYPE}.json
 TOKENIZER_CONFIG_JSON=./janus_prot/model/progen/tokenizer.json
 OUT_DIR=/cto_studio/xtalpi_lab/liuzijing/outputs/progen2design1
 
-deepspeed janus_prot/train/train_stage1mix.py \
+python janus_prot/train/train_stage1mix.py \
     --deepspeed scripts/zero2.json \
     --model_name_or_path ${PROGEN_DIR} \
     --tokenizer_path ${TOKENIZER_CONFIG_JSON} \

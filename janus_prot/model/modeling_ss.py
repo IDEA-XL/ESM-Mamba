@@ -259,7 +259,6 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         struct2seq_id=None
     ):
         compute_dtype = self.language_model.dtype
-        breakpoint()
         seq_ids = input_ids.clone().detach()
         if (~struct2seq_id).sum() > 0:
             structure_embeds = self.prepare_gen_img_embeds(input_ids).to(torch.float32)

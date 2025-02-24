@@ -61,7 +61,14 @@ def collate_fn_mm(batch):
 
 def collate_fn_slm(batch):
     inputs = {}
-    seqs, label_ids, structure_seq_masks = tuple(zip(*batch))
+    mb = min([len(b) for b in batch])
+    if mb == 3:
+        seqs, label_ids, structure_seq_masks = tuple(zip(*batch))
+    elif mb == 4:
+        seqs, label_ids, structure_seq_masks, _ = tuple(zip(*batch))
+    elif mb ==5:
+        seqs, label_ids, structure_seq_masks, _ , _ = tuple(zip(*batch))
+
     label_ids = pad_sequences(label_ids, -100)
 
     batch_size = len(batch)

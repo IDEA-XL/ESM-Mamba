@@ -3,8 +3,8 @@
 TOKENIZER_CONFIG_JSON=./janus_prot/model/progen/tokenizer.json
 # OUT_DIR=/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2medium_mix2
 # MODEL_DIR=/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2mix1/checkpoint-5000
-OUT_DIR=/cto_labs/liuzijing/outputs/progen2largemix2
-MODEL_DIR=/cto_labs/liuzijing/outputs/progen2largemix1/checkpoint-5000
+OUT_DIR=/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2design2a100
+MODEL_DIR=/cto_studio/xtalpi_lab/liuzijing/outputs/progen2design1/checkpoint-6160
 
 deepspeed janus_prot/train/train_stage2mix.py \
     --deepspeed scripts/zero2.json \
@@ -15,8 +15,8 @@ deepspeed janus_prot/train/train_stage2mix.py \
     --gradient_accumulation_steps 1 \
     --use_cache False \
     --gradient_checkpointing True \
-    --warmup_steps 3000 \
-    --num_train_epochs 800 \
+    --warmup_steps 5000 \
+    --num_train_epochs 1200 \
     --optim "adamw_torch" \
     --adam_beta2 0.95 \
     --ddp_find_unused_parameters True \
