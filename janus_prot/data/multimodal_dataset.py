@@ -16,7 +16,7 @@ from janus_prot.data.constants import _10TB
 
 class Seq40StructDataset(Dataset):
     """
-    Structure and sequence dataset in the format of "1ABC23sAsB4" or "2CBA14sBsA3"
+    sequence to structure dataset in the format of "1ABC23sAsB4" or "2CBA14sBsA3"
     sampled by sequence identity 40%
     Parameters:
         lmdb_path (`str`):
@@ -432,7 +432,7 @@ class SeqStructMixDataset(torch.utils.data.Dataset):
 
 class SeqStructureDataset(Dataset):
     """
-    Structure and sequence dataset in the format of "1ABC23sAsB4" or "2CBA14sBsA3"
+    sequence to structure dataset in the format of "1ABC23sAsB4" or "2CBA14sBsA3"
     Parameters:
         lmdb_path (`str`):
             Path to the sequence data.

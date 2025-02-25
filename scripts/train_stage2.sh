@@ -1,17 +1,17 @@
 #!/bin/bash
-# PROGEN_TYPE="large"
+PROGEN_TYPE="small"
 TOKENIZER_CONFIG_JSON=./janus_prot/model/progen/tokenizer.json
 # OUT_DIR=/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2medium_mix2
-# MODEL_DIR=/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2mix1/checkpoint-5000
-OUT_DIR=/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2design2a100
-MODEL_DIR=/cto_studio/xtalpi_lab/liuzijing/outputs/progen2design1/checkpoint-6160
+MODEL_DIR=/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2design_${PROGEN_TYPE}1/checkpoint-6160
+OUT_DIR=/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2design_${PROGEN_TYPE}2a100
+# MODEL_DIR=/cto_labs/liuzijing/outputs/progen2design_${PROGEN_TYPE}1/checkpoint-6160
 
 deepspeed janus_prot/train/train_stage2mix.py \
     --deepspeed scripts/zero2.json \
     --model_name_or_path ${MODEL_DIR}\
     --tokenizer_path ${TOKENIZER_CONFIG_JSON} \
     --output_dir ${OUT_DIR} \
-    --per_device_train_batch_size 32 \
+    --per_device_train_batch_size 64 \
     --gradient_accumulation_steps 1 \
     --use_cache False \
     --gradient_checkpointing True \

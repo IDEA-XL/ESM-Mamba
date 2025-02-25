@@ -73,15 +73,5 @@
     },
     "model_type": "multi_modality",
     "torch_dtype": "bfloat16",
-    "transformers_version": "4.38.2",
-    "structure_config": {
-      "cls": "CLIPVisionTower", 
-      "model_type": "structure",
-      "params": {
-        "image_size": 384,
-        "model_name": "siglip_large_patch16_384",
-        "select_feature": "same",
-        "select_layer": -1
-      }
-    }
+    "transformers_version": "4.38.2"
   }

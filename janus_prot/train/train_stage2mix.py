@@ -8,7 +8,7 @@ from janus_prot.model.modeling_ss import MultiModalityCausalLM
 from janus_prot.data import collate_fn_slm, SeqStructureDataset, SeqStructMixDataset
 
 local_rank = None
-data_dir = "/cto_studio/xtalpi_lab/Datasets" #"/cto_labs/liuzijing/datasets/" # 
+data_dir = "/cto_studio/xtalpi_lab/Datasets" #"/cto_labs/liuzijing/datasets/" #  
 @dataclass
 class DataArguments:
     train_lmdb_path: str = field(default=f"{data_dir}/lmdb/train_dedup/data.lmdb")

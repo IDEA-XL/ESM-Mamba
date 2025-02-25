@@ -14,7 +14,7 @@
     "model_type": "gen_aligner",
     "params": {
       "depth": 2,
-      "input_dim": 8,
+      "input_dim": 1024,
       "n_embed": 2560,
       "projector_type": "mlp_gelu"
     }
@@ -24,7 +24,7 @@
     "model_type": "gen_head",
     "params": {
       "structure_token_embed": 2560,
-      "structure_token_size": 4096,
+      "structure_token_size": 4100,
       "n_embed": 2560
     }
   },
@@ -32,8 +32,8 @@
     "cls": "StructureTokenEncoder",
     "model_type": "gen_structure",
     "params": {
-      "structure_token_size": 4096,
-      "n_embed": 8
+      "structure_token_size": 4100,
+      "n_embed": 1024
     }
   },
   "language_config": {
@@ -73,15 +73,5 @@
   },
   "model_type": "multi_modality",
   "torch_dtype": "bfloat16",
-  "transformers_version": "4.38.2",
-  "structure_config": {
-    "cls": "CLIPVisionTower", 
-    "model_type": "structure",
-    "params": {
-      "image_size": 384,
-      "model_name": "siglip_large_patch16_384",
-      "select_feature": "same",
-      "select_layer": -1
-    }
-  }
+  "transformers_version": "4.38.2"
 }
