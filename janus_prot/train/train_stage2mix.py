@@ -5,7 +5,7 @@ import transformers
 from transformers import TrainingArguments, Trainer
 
 from janus_prot.model.modeling_ss import MultiModalityCausalLM
-from janus_prot.data import collate_fn_slm, SeqStructureDataset, SeqStructMixDataset
+from janus_prot.data import collate_fn_slm, SeqStructureDataset, SeqStructMixDataset, Seq40StructDataset
 
 local_rank = None
 data_dir = "/cto_labs/liuzijing/datasets/" # "/cto_studio/xtalpi_lab/Datasets" #
@@ -29,7 +29,7 @@ class ModelArguments:
 
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
-    cont_ckpt: str = field(default=None)
+    cont_ckpt: str = field(default="/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2mm2medium_pdb/checkpoint-77000")
 
 
 def train():
@@ -55,12 +55,20 @@ def train():
         param.data = param.data.contiguous()
 
     # init dataset
-    train_dataset = SeqStructMixDataset(
+    # train_dataset = SeqStructMixDataset(
+    #     lmdb_path=data_args.train_lmdb_path, 
+    #     struct_path=data_args.train_struct_path,
+    #     struct2seq_path=data_args.struct2seq_path,
+    #     max_length=model_args.model_max_length,
+    #     seq_ratio=0.6,
+    #     sequence_tokenizer=progen_tokenizer
+    # )
+
+    train_dataset = Seq40StructDataset(
         lmdb_path=data_args.train_lmdb_path, 
         struct_path=data_args.train_struct_path,
         struct2seq_path=data_args.struct2seq_path,
         max_length=model_args.model_max_length,
-        seq_ratio=0.6,
         sequence_tokenizer=progen_tokenizer
     )
 

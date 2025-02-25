@@ -3,8 +3,8 @@
 TOKENIZER_CONFIG_JSON=./janus_prot/model/progen/tokenizer.json
 # OUT_DIR=/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2medium_mix2
 # MODEL_DIR=/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2mix1/checkpoint-5000
-OUT_DIR=/cto_labs/liuzijing/outputs/progen2largemix2
-MODEL_DIR=/cto_labs/liuzijing/outputs/progen2largemix1/checkpoint-5000
+OUT_DIR=/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2medium_pdb2
+MODEL_DIR=/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2mm2medium_pdb/checkpoint-77000
 
 deepspeed janus_prot/train/train_stage2mix.py \
     --deepspeed scripts/zero2.json \

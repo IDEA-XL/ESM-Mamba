@@ -16,7 +16,7 @@ from janus_prot.data.constants import _10TB
 
 class Seq40StructDataset(Dataset):
     """
-    Structure and sequence dataset in the format of "1ABC23sAsB4" or "2CBA14sBsA3"
+    sequence to Structure dataset in the format of "1ABC23sAsB4" or "2CBA14sBsA3"
     sampled by sequence identity 40%
     Parameters:
         lmdb_path (`str`):
@@ -27,15 +27,15 @@ class Seq40StructDataset(Dataset):
 
         max_length (`int`)
 
-        struct_only (`bool`):
-            Whether to use the sequence GPT loss.
+        is_flip (`bool`):
+            Whether to randomly flip the sequence.
     """
     def __init__(self,
                  lmdb_path: str,
 	             struct_path: list,
 	             max_length: int = 512,
                  seq_ratio: int = 1,
-				 struct_only: bool = False,
+				 is_flip: bool = False,
                  sequence_tokenizer = EsmSequenceTokenizer()):
         super().__init__()
 
@@ -46,7 +46,7 @@ class Seq40StructDataset(Dataset):
         self.structure_tokenizer = StructureTokenizer()
         self.struct_inf_token_id = 2246
         self.max_length = max_length
-        self.struct_only = struct_only
+        self.is_flip = is_flip
 
         self.struct_token = {}
         self.struct_seq = {}
@@ -159,11 +159,11 @@ class Seq40StructDataset(Dataset):
             seq = seq[start_idx:end_idx]
 
             # seq+structure 1 AB 2 3 SaSb 4 or 2 BA 1 4 SbSa 3
-            if random.random() > 0.5:
-                seq = "1" + seq + "2" + "3" + seq + "4"
-            else:
+            if self.is_flip and random.random() > 0.5:
                 seq = "2" + seq[::-1] + "1" + "4" + seq + "3"
                 struct_seq = torch.flip(struct_seq, dims=[0])
+            else:
+                seq = "1" + seq + "2" + "3" + seq + "4"
 
             token_ids = torch.tensor(self.sequence_tokenizer.encode(seq).ids, dtype=torch.long)
             structure_seq_mask: torch.BoolTensor = token_ids == -100
@@ -219,6 +219,7 @@ class SeqStructMixDataset(torch.utils.data.Dataset):
                  struct2seq_path: str,
 	             max_length: int = 512,
                  seq_ratio: float = 1.0,
+                 is_flip: bool = False,
                  sequence_tokenizer = EsmSequenceTokenizer()):
         super().__init__()
 
@@ -229,6 +230,7 @@ class SeqStructMixDataset(torch.utils.data.Dataset):
         self.structure_tokenizer = StructureTokenizer()
         self.struct_inf_token_id = 2246
         self.max_length = max_length
+        self.is_flip = is_flip
 
         ### struct token data
         self.struct_token = {}
@@ -356,11 +358,11 @@ class SeqStructMixDataset(torch.utils.data.Dataset):
             seq = seq[start_idx:end_idx]
 
             # seq+structure 1 AB 2 3 SaSb 4 or 2 BA 1 4 SbSa 3
-            if random.random() > 0.5:
-                seq = "1" + seq + "2" + "3" + seq + "4"
-            else:
+            if self.is_flip and random.random() > 0.5:
                 seq = "2" + seq[::-1] + "1" + "4" + seq + "3"
                 struct_seq = torch.flip(struct_seq, dims=[0])
+            else:
+                seq = "1" + seq + "2" + "3" + seq + "4"
 
             token_ids = torch.tensor(self.sequence_tokenizer.encode(seq).ids, dtype=torch.long)
             structure_seq_mask: torch.BoolTensor = token_ids == -100
@@ -385,11 +387,11 @@ class SeqStructMixDataset(torch.utils.data.Dataset):
                 seq = x_data["seq"]
             
             struct_emb = token_ids = torch.tensor(emb, dtype=torch.float)
-            if random.random() > 0.5:
-                seq = "3" + seq + "4" + "1" + seq + "2"
-            else:
+            if self.is_flip and random.random() > 0.5:
                 seq = "4" + seq + "3" + "2" + seq[::-1] + "1"
                 struct_emb = torch.flip(struct_emb, dims=[0])
+            else:
+                seq = "3" + seq + "4" + "1" + seq + "2"
 
             token_ids = torch.tensor(self.sequence_tokenizer.encode(seq).ids, dtype=torch.long)
 
@@ -406,7 +408,7 @@ class SeqStructMixDataset(torch.utils.data.Dataset):
 
 class SeqStructureDataset(Dataset):
     """
-    Structure and sequence dataset in the format of "1ABC23sAsB4" or "2CBA14sBsA3"
+    sequence to Structure dataset in the format of "1ABC23sAsB4" or "2CBA14sBsA3"
     Parameters:
         lmdb_path (`str`):
             Path to the sequence data.

@@ -29,7 +29,7 @@ def ESM3_structure_decoder_v0(device: torch.device | str = "cpu"):
 esm_tokenizer = EsmSequenceTokenizer()
 
 @torch.inference_mode()
-def test_one(input_seq, model, ckpt_path,
+def test_one(input_seq, model, ckpt_path, residue_index=None,
              target_name: str = "",
              temperature: float = 1,
              parallel_size: int = 4,
@@ -109,7 +109,8 @@ def test_one(input_seq, model, ckpt_path,
             )
         
         chain = ProteinChain.from_atom37(
-            coordinates, sequence=input_seq)
+            coordinates, sequence=input_seq, 
+            residue_index=residue_index, confidence=plddt)
 
         chain.to_pdb(f"{ckpt_path}/predictions/pre_{target_name}{i}.pdb")
 
@@ -135,18 +136,27 @@ if __name__ == "__main__":
     # 2hz4
     # input_seq = "VSPNYDKWEMERTDITMKHKLGGGQYGEVYEGVWKKYSLTVAVKTLKEDTMEVEEFLKEAAVMKEIKHPNLVQLLGVCTREPPFYIITEFMTYGNLLDYLRECNRQEVNAVVLLYMATQISSAMEYLEKKNFIHRDLAARNCLVGENHLVKVADFGLSRLMTGDTYTAHAGAKFPIKWTAPESLAYNKFSIKSDVWAFGVLLWEIATYGMSPYPGIDLSQVYELLEKDYRMERPEGCPEKVYELMRACWQWNPSDRPSFAEIHQAFETMFQES"
     # target_name = "2hz4"
-    # input_seq = "VSPNYDKWEMERTDITMKHKLGGGQYGEVYEGVWKKYSLTVAVKTLKEDTMEVEEFLKEAAVMKEIKHPNLVQLLGVCTREPPFYIITEFMTYGNLLDYLRECN"
+
+    input_seq = "RPDFCLEPPYTGPCKARIIRYFYNAKAGLCQTFVYGGCRAKRNNFKSAEDCMRTCGGA"
+    target_name = "BPTI"
 
     model = MultiModalityCausalLM.from_pretrained(ckpt, device_map=my_device, gradient_checkpointing=False, use_cache = True)
     model = model.to(torch.bfloat16).cuda().eval()
 
-    # test_one(input_seq, model, ckpt, target_name)
+    
+    parallel_size = 32
+    # test_one(input_seq, model, ckpt, 
+    #         None, target_name, parallel_size=parallel_size)
 
     # cameo_dir = "/cto_studio/xtalpi_lab/liuzijing/temp/modeling/2024.10.05"
-    cameo_dir = "/cto_studio/xtalpi_lab/liuzijing/temp/CASP15/CASP15_label"
+    cameo_dir = "/cto_studio/xtalpi_lab/Datasets/casp14-casp15-cameo-test-proteins/cameo_structure_gts"
     f_list = glob.glob(cameo_dir + '/*')
     plddts = {}
     avg_plddts = {}
+    rmsds = {}
+    avg_rmsds = {}
+    tmscores = {}
+    avg_tmscores = {}
     parallel_size = 4
     save_output = {}
 
@@ -157,38 +167,55 @@ if __name__ == "__main__":
         # with open(fasta_file, 'r') as f:
         #     txt = f.read()
         #     input_seq = txt.split('\n')[-1]
-        
         target_pdb = f1
         target_name = f1.split("/")[-1].split(".")[0]
-        target_pdb = f"/cto_studio/xtalpi_lab/liuzijing/temp/CASP15/ESMFold/cycle4/{target_name}_ESMfold.pdb"
+        target_pdb = f"/{cameo_dir}/{target_name}.pdb"
         protein_chain = ProteinChain.from_pdb(target_pdb)
         input_seq = protein_chain.sequence
 
         print(target_name)
         print(len(input_seq))
         if len(input_seq) > 510:
+            print("skipped")
             continue
         
-        save_output[target_name] = test_one(input_seq, model, ckpt, target_name, parallel_size=parallel_size)
-        lddts = []
+        save_output[target_name] = test_one(input_seq, model, ckpt, 
+                                            protein_chain.residue_index, 
+                                            target_name, parallel_size=parallel_size)
+        lddt = []
+        tmscore = []
+        rmsd = []
         for i in range(parallel_size):
             pred_pdb = f"{ckpt}/predictions/pre_{target_name}{i}.pdb"
             result = os.popen(f"lddt -c {pred_pdb} {target_pdb}")
             res = result.read()
             for line in res.splitlines():
                 if line.startswith("Global LDDT score"):
-                    lddts.append(float(line.split(":")[-1].strip()))
-        plddts[target_name] = max(lddts)
-        avg_plddts[target_name] = np.array(lddts).mean()
+                    lddt.append(float(line.split(":")[-1].strip()))
+
+            tm_result = os.popen(f"/cto_studio/xtalpi_lab/softwares/TMscore {pred_pdb} {target_pdb}")
+            res = tm_result.read()
+            for line in res.splitlines():
+                if line.startswith("TM-score"):
+                    tmscore.append(float(line.split("=")[1].strip().split(" ")[0]))
+                if line.startswith("RMSD of"):
+                    rmsd.append(float(line.split("=")[-1].strip()))
+
+        tmscores[target_name] = max(tmscore)
+        avg_tmscores[target_name] = np.array(tmscore).mean()
+        plddts[target_name] = max(lddt)
+        avg_plddts[target_name] = np.array(lddt).mean()
+        rmsds[target_name] = min(rmsd)
+        avg_rmsds[target_name] = np.array(rmsd).mean()
     
     with open(f"{ckpt}/predictions/tokens.pkl", 'wb') as f:
         pickle.dump(save_output, f)
 
-    for k, v in plddts.items():
-        print(k,v)
-
-    for k, v in avg_plddts.items():
-        print(k,v)
-
-
+    print("dataset: ", cameo_dir, "model:", ckpt)
+    print("average plddts", np.array(list(avg_plddts.values())).mean())
+    print("plddts", np.array(list(plddts.values())).mean())
     
+    print("average tmscores", np.array(list(avg_tmscores.values())).mean())
+    print("tmscores", np.array(list(tmscores.values())).mean())
+    print("average rmsds", np.array(list(avg_rmsds.values())).mean())
+    print("rmsds", np.array(list(rmsds.values())).mean())
