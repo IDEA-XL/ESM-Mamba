@@ -360,12 +360,15 @@ class SeqStructMixDataset(torch.utils.data.Dataset):
 
             # seq+structure 1 AB 2 4096 SaSb 4097
             if prob < 0.4: # 40% seq to structure
+                position_ids = torch.arange(len(seq)+2)
+                position_ids = torch.cat((position_ids, position_ids))
                 if self.is_flip and random.random() > 0.5:
                     seq = "2" + seq[::-1] + "1" + "<|s_eos|>" + seq + "<|s_bos|>"
                     struct_seq = torch.flip(struct_seq, dims=[0])
                 else:
                     seq = "1" + seq + "2" + "<|s_bos|>" + seq + "<|s_eos|>"
             else:  # 10% de novo structure
+                position_ids = torch.arange(len(seq)+2)
                 seq = "<|s_bos|>" + seq + "<|s_eos|>"
 
             token_ids = torch.tensor(self.sequence_tokenizer.encode(seq).ids, dtype=torch.long)
@@ -382,7 +385,7 @@ class SeqStructMixDataset(torch.utils.data.Dataset):
             structure_seq_mask[-1] = True
             structure_seq_mask[-(len(struct_seq)+2)] = True
 
-            return token_ids, labels, structure_seq_mask 
+            return token_ids, labels, structure_seq_mask, position_ids 
         elif prob < 0.75:  # 25% struct to sequence
             index = random.randint(0, self.len_emb-1)
             key = self.name_list[index]
@@ -395,6 +398,8 @@ class SeqStructMixDataset(torch.utils.data.Dataset):
                 seq = x_data["seq"]
             
             struct_emb = token_ids = torch.tensor(emb, dtype=torch.float)
+            position_ids = torch.arange(len(seq)+2)
+            position_ids = torch.cat((position_ids, position_ids))
             if self.is_flip and random.random() > 0.5:
                 seq = "4" + seq + "3" + "2" + seq[::-1] + "1"
                 struct_emb = torch.flip(struct_emb, dims=[0])
@@ -411,13 +416,14 @@ class SeqStructMixDataset(torch.utils.data.Dataset):
             labels = torch.full((len(token_ids),), -100, dtype=torch.long)
             labels[len(plddt)+3:] = token_ids[len(plddt)+3:]
 
-            return token_ids, labels, structure_seq_mask, struct_emb_mask, struct_emb
+            return token_ids, labels, structure_seq_mask, position_ids, struct_emb_mask, struct_emb
         
         else: # 25% pure sequence
             index = random.randint(0, self.len_seq-1)
             index = f"{index:09d}"
             entry = json.loads(self._get(index))
             seq = entry['seq'][:self.max_length-2]
+            position_ids = torch.arange(len(seq)+2)
             if self.is_flip and random.random() > 0.5:
                 seq = "2" + seq[::-1] + "1"
             else:
@@ -427,7 +433,7 @@ class SeqStructMixDataset(torch.utils.data.Dataset):
             for i in range(len(token_ids)):
                 labels[i] = token_ids[i]
             structure_seq_mask = torch.full((len(token_ids),), False, dtype=torch.bool)
-            return token_ids, labels, structure_seq_mask, 1
+            return token_ids, labels, structure_seq_mask, position_ids, 1
 
 
 class SeqStructureDataset(Dataset):
@@ -449,12 +455,9 @@ class SeqStructureDataset(Dataset):
                  lmdb_path: str,
 	             struct_path: str,
 	             max_length: int = 512,
-                 seq_ratio: int = 1,
 				 is_flip: bool = False,
                  sequence_tokenizer = EsmSequenceTokenizer()):
         super().__init__()
-
-        self.seq_ratio = seq_ratio
 
         self.lmdb_path = lmdb_path
         self.sequence_tokenizer = sequence_tokenizer
@@ -504,51 +507,42 @@ class SeqStructureDataset(Dataset):
         return value
 
     def __len__(self):
-        return int(self.seq_ratio * self.len_struct)
+        return int(self.len_struct)
     
     def __getitem__(self, index:int):
-        if index % self.seq_ratio == 0: # 1/seq_ratio prob. using structure
-            index = index // self.seq_ratio
-            seq = self.struct_seq[index]
-            struct = self.struct_data[seq] # sAsBsC
-            # cut to max_len/2 - 2 = 510  <bos> AAA <eos> <S_BOS> SSS <S_EOS>
-            start_offset = random.randint(0, max(0, len(seq) - self.max_length//2+2))
-            start_idx = start_offset
-            end_idx = start_idx + min(self.max_length//2-2, len(seq))
+        index = index // self.seq_ratio
+        seq = self.struct_seq[index]
+        struct = self.struct_data[seq] # sAsBsC
+        # cut to max_len/2 - 2 = 510  <bos> AAA <eos> <S_BOS> SSS <S_EOS>
+        start_offset = random.randint(0, max(0, len(seq) - self.max_length//2+2))
+        start_idx = start_offset
+        end_idx = start_idx + min(self.max_length//2-2, len(seq))
 
-            struct_seq = torch.tensor(struct[start_idx:end_idx], dtype=torch.int64)
-            seq = seq[start_idx:end_idx]
+        struct_seq = torch.tensor(struct[start_idx:end_idx], dtype=torch.int64)
+        seq = seq[start_idx:end_idx]
 
-            # seq+structure 1 AB 2 4096 SaSb 4097 
-            if self.is_flip and random.random() > 0.5:
-                    seq = "2" + seq[::-1] + "1" + "<|s_eos|>" + seq + "<|s_bos|>"
-                    struct_seq = torch.flip(struct_seq, dims=[0])
-            else:
-                    seq = "1" + seq + "2" + "<|s_bos|>" + seq + "<|s_eos|>"
+        # seq+structure 1 AB 2 4096 SaSb 4097 
+        position_ids = torch.arange(len(seq)+2)
+        position_ids = torch.cat((position_ids,position_ids))
+        if self.is_flip and random.random() > 0.5:
+            seq = "2" + seq[::-1] + "1" + "<|s_eos|>" + seq + "<|s_bos|>"
+            struct_seq = torch.flip(struct_seq, dims=[0])
+        else:
+            seq = "1" + seq + "2" + "<|s_bos|>" + seq + "<|s_eos|>"
+            position_ids = torch.arange(len(seq)+2)
+            position_ids = torch.cat((position_ids,position_ids))
 
-            token_ids = torch.tensor(self.sequence_tokenizer.encode(seq).ids, dtype=torch.long)
-            structure_seq_mask: torch.BoolTensor = token_ids == -100
-            structure_seq_mask[len(struct_seq)+3:-1] = True
-            token_ids[structure_seq_mask] = struct_seq
+        token_ids = torch.tensor(self.sequence_tokenizer.encode(seq).ids, dtype=torch.long)
+        structure_seq_mask: torch.BoolTensor = token_ids == -100
+        structure_seq_mask[len(struct_seq)+3:-1] = True
+        token_ids[structure_seq_mask] = struct_seq
 
-            labels = torch.full((len(token_ids),), -100, dtype=torch.long)
-            structure_seq_mask[-1] = True
-            labels[structure_seq_mask] = token_ids[structure_seq_mask]
-            structure_seq_mask[len(struct_seq)+2] = True
+        labels = torch.full((len(token_ids),), -100, dtype=torch.long)
+        structure_seq_mask[-1] = True
+        labels[structure_seq_mask] = token_ids[structure_seq_mask]
+        structure_seq_mask[len(struct_seq)+2] = True
 
-            return token_ids, labels, structure_seq_mask
-        else:  # sequence
-            index = random.randint(0, self.len_seq-1)
-            index = f"{index:09d}"
-            entry = json.loads(self._get(index))
-            seq = entry['seq'][:self.max_length]
-            token_ids = encoding.tokenize_sequence(
-                    seq, self.sequence_tokenizer, add_special_tokens=True
-                )        # <bos> AA <eos>
-            labels = torch.full((len(token_ids),), -100, dtype=torch.long)
-            for i in range(len(token_ids)):
-                labels[i] = token_ids[i]
-            return token_ids, labels   
+        return token_ids, labels, structure_seq_mask, position_ids
         
 
 class LimitedSeqStructureDataset(Dataset):

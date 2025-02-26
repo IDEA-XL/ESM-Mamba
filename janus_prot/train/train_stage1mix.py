@@ -9,12 +9,12 @@ from janus_prot.model.modeling_ss import MultiModalityCausalLM, MultiModalityCon
 from janus_prot.data import collate_fn_slm, SeqStructureDataset, SeqStructMixDataset
 
 local_rank = None
-data_dir = "/cto_labs/liuzijing/datasets/" #"/cto_studio/xtalpi_lab/Datasets" #    
+data_dir = "/cto_labs/liuzijing/datasets/" #  "/cto_studio/xtalpi_lab/Datasets" #  
 @dataclass
 class DataArguments:
     train_lmdb_path: str = field(default=f"{data_dir}/lmdb/train_dedup/data.lmdb")
     valid_lmdb_path: str = field(default=f"{data_dir}/lmdb/valid/data.lmdb")
-    struct2seq_path: str = field(default="/cto_labs/liuzijing/datasets/swiss_prot_esm3")
+    struct2seq_path: str = field(default="/data/swiss_prot_esm3")
     train_struct_path: list[str] = field(default_factory=lambda: [
         f"{data_dir}/AF2_ebi_processed/",
         f"{data_dir}/PDB_processed/"
