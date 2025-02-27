@@ -11,12 +11,12 @@ deepspeed janus_prot/train/train_stage2mix.py \
     --model_name_or_path ${MODEL_DIR}\
     --tokenizer_path ${TOKENIZER_CONFIG_JSON} \
     --output_dir ${OUT_DIR} \
-    --per_device_train_batch_size 32 \
+    --per_device_train_batch_size 64 \
     --gradient_accumulation_steps 1 \
     --use_cache False \
     --gradient_checkpointing True \
     --warmup_steps 3000 \
-    --num_train_epochs 800 \
+    --num_train_epochs 1600 \
     --optim "adamw_torch" \
     --adam_beta2 0.95 \
     --ddp_find_unused_parameters True \

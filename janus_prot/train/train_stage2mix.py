@@ -67,7 +67,6 @@ def train():
     train_dataset = Seq40StructDataset(
         lmdb_path=data_args.train_lmdb_path, 
         struct_path=data_args.train_struct_path,
-        struct2seq_path=data_args.struct2seq_path,
         max_length=model_args.model_max_length,
         sequence_tokenizer=progen_tokenizer
     )
