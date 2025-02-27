@@ -100,6 +100,7 @@ def test_one(input_seq, model, ckpt_path, residue_index=None,
     if not os.path.exists(f"{ckpt_path}/predictions"):
         os.mkdir(f"{ckpt_path}/predictions")
 
+    plddts = []
     for i in range(struct_token.shape[0]):
         coordinates, plddt, ptm = decoding.decode_structure(
                 structure_tokens=struct_token[i],
@@ -107,14 +108,16 @@ def test_one(input_seq, model, ckpt_path, residue_index=None,
                 structure_tokenizer=structure_tokenizer,
                 sequence=input_seq,
             )
-        
+
         chain = ProteinChain.from_atom37(
             coordinates, sequence=input_seq, 
             residue_index=residue_index, confidence=plddt)
+        plddts.append(plddt.mean())
 
         chain.to_pdb(f"{ckpt_path}/predictions/pre_{target_name}{i}.pdb")
+    plddts_idx = np.array(plddts).argmax()
 
-    return output
+    return output, plddts_idx
 
 
 if __name__ == "__main__":
@@ -149,15 +152,16 @@ if __name__ == "__main__":
     #         None, target_name, parallel_size=parallel_size)
 
     # cameo_dir = "/cto_studio/xtalpi_lab/liuzijing/temp/modeling/2024.10.05"
-    cameo_dir = "/cto_studio/xtalpi_lab/Datasets/casp14-casp15-cameo-test-proteins/cameo_structure_gts"
+    cameo_dir = "/cto_studio/xtalpi_lab/Datasets/casp14-casp15-cameo-test-proteins/casp15_structure_gts"
     f_list = glob.glob(cameo_dir + '/*')
     plddts = {}
     avg_plddts = {}
     rmsds = {}
     avg_rmsds = {}
     tmscores = {}
+    tmscores_plddt = {}
     avg_tmscores = {}
-    parallel_size = 4
+    parallel_size = 32
     save_output = {}
 
     for f1 in f_list:
@@ -179,7 +183,7 @@ if __name__ == "__main__":
             print("skipped")
             continue
         
-        save_output[target_name] = test_one(input_seq, model, ckpt, 
+        save_output[target_name], pre_idx = test_one(input_seq, model, ckpt, 
                                             protein_chain.residue_index, 
                                             target_name, parallel_size=parallel_size)
         lddt = []
@@ -207,6 +211,8 @@ if __name__ == "__main__":
         avg_plddts[target_name] = np.array(lddt).mean()
         rmsds[target_name] = min(rmsd)
         avg_rmsds[target_name] = np.array(rmsd).mean()
+        tmscores_plddt[target_name] = tmscore[pre_idx]
+        breakpoint()
     
     with open(f"{ckpt}/predictions/tokens.pkl", 'wb') as f:
         pickle.dump(save_output, f)
@@ -219,3 +225,5 @@ if __name__ == "__main__":
     print("tmscores", np.array(list(tmscores.values())).mean())
     print("average rmsds", np.array(list(avg_rmsds.values())).mean())
     print("rmsds", np.array(list(rmsds.values())).mean())
+
+    print("tmscores by plddt", np.array(list(tmscores_plddt.values())).mean())
