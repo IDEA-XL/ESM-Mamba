@@ -1,9 +1,11 @@
 #!/bin/bash
-PROGEN_TYPE="small"
-PROGEN_DIR=/cto_labs/liuzijing/weights/progen2-${PROGEN_TYPE}
+PROGEN_TYPE="medium"
 MODEL_CONFIG_JSON=./janus_prot/model/config_${PROGEN_TYPE}.json
 TOKENIZER_CONFIG_JSON=./janus_prot/model/progen/tokenizer.json
-OUT_DIR=/cto_labs/liuzijing/outputs/progen2design_${PROGEN_TYPE}1
+# PROGEN_DIR=/cto_labs/liuzijing/weights/progen2-${PROGEN_TYPE}
+# OUT_DIR=/cto_labs/liuzijing/outputs/progen2design_pid_${PROGEN_TYPE}1
+PROGEN_DIR=/cto_studio/xtalpi_lab/liuzijing/weights/progen2-${PROGEN_TYPE}
+OUT_DIR=/cto_studio/xtalpi_lab/liuzijing/outputs/progen2design_pid_${PROGEN_TYPE}1
 
 deepspeed janus_prot/train/train_stage1mix.py \
     --deepspeed scripts/zero2.json \

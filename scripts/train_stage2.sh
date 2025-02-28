@@ -1,11 +1,10 @@
 #!/bin/bash
-PROGEN_TYPE="small"
+PROGEN_TYPE="medium"
 TOKENIZER_CONFIG_JSON=./janus_prot/model/progen/tokenizer.json
-# OUT_DIR=/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2medium_mix2
-MODEL_DIR=/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2design_${PROGEN_TYPE}1/checkpoint-6160
-OUT_DIR=/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2design_${PROGEN_TYPE}2a100
-# MODEL_DIR=/cto_labs/liuzijing/outputs/progen2design_${PROGEN_TYPE}1/checkpoint-6160
-
+MODEL_DIR=/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2design_pid_${PROGEN_TYPE}1/checkpoint-6160
+OUT_DIR=/cto_studio/xtalpi_lab/liuzijing/ESM-Mamba/results/progen2design_pid_${PROGEN_TYPE}2a100
+# MODEL_DIR=/cto_labs/liuzijing/outputs/progen2design_pid_${PROGEN_TYPE}1/checkpoint-6160
+# OUT_DIR=/cto_labs/liuzijing/outputs/progen2design_pid_${PROGEN_TYPE}2
 deepspeed janus_prot/train/train_stage2mix.py \
     --deepspeed scripts/zero2.json \
     --model_name_or_path ${MODEL_DIR}\

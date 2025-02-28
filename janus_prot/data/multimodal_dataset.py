@@ -510,7 +510,6 @@ class SeqStructureDataset(Dataset):
         return int(self.len_struct)
     
     def __getitem__(self, index:int):
-        index = index // self.seq_ratio
         seq = self.struct_seq[index]
         struct = self.struct_data[seq] # sAsBsC
         # cut to max_len/2 - 2 = 510  <bos> AAA <eos> <S_BOS> SSS <S_EOS>
@@ -523,14 +522,12 @@ class SeqStructureDataset(Dataset):
 
         # seq+structure 1 AB 2 4096 SaSb 4097 
         position_ids = torch.arange(len(seq)+2)
-        position_ids = torch.cat((position_ids,position_ids))
+        position_ids = torch.cat((position_ids, position_ids))
         if self.is_flip and random.random() > 0.5:
             seq = "2" + seq[::-1] + "1" + "<|s_eos|>" + seq + "<|s_bos|>"
             struct_seq = torch.flip(struct_seq, dims=[0])
         else:
             seq = "1" + seq + "2" + "<|s_bos|>" + seq + "<|s_eos|>"
-            position_ids = torch.arange(len(seq)+2)
-            position_ids = torch.cat((position_ids,position_ids))
 
         token_ids = torch.tensor(self.sequence_tokenizer.encode(seq).ids, dtype=torch.long)
         structure_seq_mask: torch.BoolTensor = token_ids == -100
